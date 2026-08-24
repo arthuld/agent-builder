@@ -1,0 +1,18 @@
+{
+  "name": "agent-builder",
+  "owner": {
+    "name": "Arthur Drumond",
+    "email": "arthur.drumond@futurotec.com.br"
+  },
+  "metadata": {
+    "description": "Skills para criar, auditar e documentar agentes virtuais de atendimento por WhatsApp baseados em OpenAI Function Calling.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "agent-builder",
+      "source": "./",
+      "description": "Cria, audita e documenta agentes virtuais de WhatsApp com OpenAI Function Calling. Skills autocontidas, validadas por RED/GREEN."
+    }
+  ]
+}

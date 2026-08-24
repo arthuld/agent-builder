@@ -1,0 +1,32 @@
+# ============================================================
+# Este repositório é um PLUGIN. Ele contém apenas:
+#   .claude-plugin/plugin.json · skills/ · README.md
+#
+# Tudo abaixo é workspace local de quem opera — fica no disco,
+# nunca no repositório. Um caminho esquecido aqui publica
+# configuração real de cliente, e histórico de git não se apaga.
+# ============================================================
+
+# Workspace: clientes e suas configurações
+Agentes Virtuais/
+INDICE-CLIENTES.md
+graphify-out/
+**/graphify-out/
+
+# Workspace: convenções e espelhos locais de runtime
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.agents/
+Utilitários/
+
+# Ruído local
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+_preview-*.html
+
+# Skills fora de circulação: mantidas no disco como referência, não publicadas
+skills/arquivadas/
