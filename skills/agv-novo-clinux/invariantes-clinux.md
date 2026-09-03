@@ -83,14 +83,21 @@ função que produziu o defeito mais visível em produção.
 | Retorno | Comportamento |
 | --- | --- |
 | **1 item, sem busca por texto** (a clínica tem uma unidade só) | Não há escolha a fazer: informar e **emendar a próxima pergunta na mesma mensagem**. Proibido numerar, proibido perguntar "qual você prefere?", proibido pedir OK. |
-| **1 item, vindo de busca por texto** (plano, exame) | Informar pelo nome exato retornado e pedir **só a confirmação**. Proibido numerar. |
+| **1 item, exato** (o nome retornado é o que o paciente pediu) | Informar pelo nome e pedir **só a confirmação**. Proibido numerar. |
+| **1 item, apenas aproximado** (a busca não achou o pedido, mas trouxe algo parecido) | Dizer que é aproximado, com todas as letras: *"Não encontrei exatamente [X], mas encontrei [Y]. É esse mesmo?"*. Nunca apresentar o aproximado como se fosse o pedido. |
 | **2 ou mais** | Lista numerada, uma por linha, teto de 5, excedente em "Outras opções". |
 | **0 itens** | Ver *Retorno vazio não é falha, e não é negação*. |
 | **Item já informado pelo paciente**, retorno com 1 correspondente | Não perguntar de novo. |
+| **Paciente rejeita o aproximado, ou repete o mesmo termo** | Não repetir a busca nem oferecer outro aproximado. Perguntar se ele quer um atendente humano para verificar melhor; com o sim, transbordo. |
 
-**Por que:** numerar uma lista de um item e perguntar a preferência quando não há alternativa é a
-inconsistência que os clientes reportam. Vem de escrever "1 ou mais itens → apresente numerado" num manual e
-"confirme o item" no fluxo — duas instruções para o mesmo passo.
+**Por que numerar um item é errado:** numerar uma lista de um item e perguntar a preferência quando não há
+alternativa é a inconsistência que os clientes reportam. Vem de escrever "1 ou mais itens → apresente
+numerado" num manual e "confirme o item" no fluxo — duas instruções para o mesmo passo.
+
+**Por que separar exato de aproximado:** a tolerância fuzzy da busca devolve o vizinho mais próximo mesmo
+quando não achou o pedido. Apresentá-lo como *"Localizei [Y]"* faz o paciente aceitar um exame que não é o
+dele — e o agendamento sai errado. E sem uma saída definida para a rejeição, o agente reincide na mesma
+busca: é a **persistência** que os clientes reclamam. A saída é o atendente humano, não mais uma tentativa.
 
 ---
 
@@ -101,8 +108,11 @@ Sem camada de validação de schema, valor no formato errado **não** volta como
 "não há vaga", indistinguível de agenda cheia para o paciente e para quem analisa a conversa depois.
 
 Consequências:
-- **Formato é regra, não preferência.** Chat sempre `DD/MM/AAAA`; a data desejada vai ao endpoint em
-  `AAAA-MM-DD`; a conversão é do agente. Nunca um terceiro formato em circulação.
+- **Formato é regra, e é por endpoint — não deduzir.** O formato exato que cada parâmetro exige (datas,
+  sexo) é o que aquele endpoint espera; assumir é o caminho direto para o vazio silencioso acima. Na
+  UltramedRJ a data é `DD/MM/AAAA` no chat **e** no envio (sem conversão) — mas isso se confirma contra o
+  registro da plataforma ou uma requisição real, não se herda. Numa revisão, `AAAA-MM-DD` entrou por
+  suposição e teria feito toda busca de horário voltar vazia.
 - **Nenhum valor de reserva em campo obrigatório.** Não existem as sentinelas `"Não Informado"` /
   `"Não coletado"` do Pré Agendamento. Faltando o dado real, o agente **retém a chamada** e pergunta.
 - **O único teste que separa as duas causas** é informar uma data com vaga **já conferida no Clinux**. Se o
@@ -125,17 +135,24 @@ posteriores.
 
 ---
 
-## 7. Chamada única para vários exames
+## 7. Um exame por chamada — vários exames em sequência
 
-Havendo mais de um exame, **todos** os IDs numa só chamada de disponibilidade, separados por vírgula. Nunca
-uma chamada por exame.
+A consulta de disponibilidade agenda **um procedimento por vez**: `PROCEDIMENTOS_GRUPO_ID` carrega um único
+ID, e cada ID de agenda retornado é uma opção de horário para aquele exame. O endpoint **não** combina vários
+exames num mesmo horário.
 
-**Por que:** horários buscados isoladamente não combinam entre si. O paciente escolheria três horários
-incompatíveis e terminaria com os exames em dias diferentes sem saber.
+**Por que:** a disponibilidade combinada é limitação do endpoint Clinux (confirmado na UltramedRJ, 08/2026).
+A versão antiga desta regra mandava concatenar todos os IDs numa chamada e tratar o retorno como "um conjunto
+que atende todos os exames juntos" — isso não funciona e foi removido.
 
-Cada **conjunto** de IDs de agenda retornado é **uma** opção de horário, que atende todos os exames juntos.
-Nunca apresentar IDs de um mesmo conjunto como opções separadas. Guardar na **mesma ordem** dos IDs de
-procedimento.
+**Vários exames → loop, não concatenação.** Paciente que pede dois exames: agendar o primeiro inteiro (busca
+→ preço → pedido → disponibilidade → grava → tag) e **depois** oferecer o próximo, reiniciando na etapa de
+exame. Consequência inerente e esperada: cada exame é um agendamento separado e **pode cair em dia
+diferente** — não há como garantir os dois no mesmo horário. Unidade e plano já definidos podem ser
+reaproveitados no loop sem reperguntar.
+
+> **Confirmar por cliente.** Se um futuro cliente Clinux tiver um endpoint que aceite disponibilidade
+> combinada, esta regra muda para ele. Perguntar — não assumir nem o um-por-vez nem o combinado.
 
 ---
 
@@ -183,6 +200,11 @@ mensagem, apresentar **uma** confirmação consolidada, atrelar as variáveis s�
 - **Ler o pedido não autoriza opinar sobre ele.** Lido apenas para extrair identificação e nome do exame.
   Proibido comentar, interpretar ou mencionar hipótese diagnóstica, CID, histórico ou medicação. Sem essa
   regra, dar visão ao agente abre caminho para aconselhamento médico.
+- **Quando não entender, perguntar com exatidão — não supor.** Mensagem ambígua, que mistura assuntos ou
+  não mapeia com segurança no fluxo: fazer **uma** pergunta específica sobre o ponto em dúvida, em vez de
+  escolher uma interpretação e seguir. A pergunta direcionada ("é o exame X ou uma dúvida sobre ele?") é
+  sempre melhor que a genérica "como posso ajudar?", que devolve o trabalho ao paciente. Supor a intenção é
+  a mesma classe de erro que supor um dado — só que mais silenciosa, porque não deixa campo vazio.
 
 ---
 
