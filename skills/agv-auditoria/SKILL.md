@@ -111,6 +111,8 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Verificar | Violação |
 | --- | --- |
 | Nenhum dado factual chumbado no prompt | Endereço, horário, preço ou lista que a função retorna, repetidos no sempre-ativo |
+| Funções sempre chamadas juntas estão fundidas | Duas ou mais funções acionadas no mesmo trecho do fluxo, cada uma pagando sua descrição em todo turno. O arquivo não custa; a descrição custa |
+| Descrição de função e de parâmetro sem conduta | Regra de comportamento na §1 ou na `description` de um parâmetro — sempre-ativo duplicando o prompt |
 | Regra geral de dados declarada uma vez | Repetição de "não memorizar" a cada item, ou duas declarações do mesmo princípio |
 | Sem duplicação entre prompt e manual | Tabela ou regra verbatim nos dois. O custo não é token, é **deriva**: a próxima correção vai num lado só |
 | Um assunto, um arquivo dono | Mesmo fato em dois JSONs de dados |
