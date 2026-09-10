@@ -247,7 +247,7 @@ cara de certa.
 
 **R13 — Responder só o subconjunto perguntado.** Ao processar o retorno de uma função que carrega uma base
 grande, responda **apenas** com o que foi perguntado. Nunca cole a base inteira na conversa.
-*Motivo:* o retorno persiste no histórico e é reenviado a cada turno seguinte. E base inteira na tela faz o
+*Motivo:* base inteira na tela faz o
 modelo misturar itens que ninguém perguntou.
 
 **R14 — Tolerância fuzzy só dentro da mesma entidade.** Quando uma função valida um dado informado pelo
@@ -318,6 +318,11 @@ interno numa conversa com o público.
 pago em **todos** os turnos. Nasce enxuto: sem dado que a função retorna, sem prosa de justificativa, sem
 regra escrita duas vezes. Quando precisar cortar, corte **redundância e verbosidade**, nunca regra: o
 racional vai para o relatório, onde não é pago por turno.
+
+O **arquivo** que a função retorna não entra nesse bloco — só a descrição dela entra. Daí o corolário de
+desenho: **menos funções é mais barato que arquivos menores.** Funda o que é sempre chamado no mesmo trecho
+do fluxo numa função só; mantenha separada apenas a que é raramente acionada, para carregar sob demanda.
+Partir um arquivo grande em duas funções piora o custo, porque paga mais uma descrição em todo turno.
 
 **R27 — Quatro campos, quatro seções.** A tela de configuração da plataforma tem quatro campos separados —
 Perfil do Agente Virtual, Diretrizes de Atendimento, Regras de Conduta, Regras de Segurança — e o arquivo de

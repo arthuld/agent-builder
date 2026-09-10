@@ -316,9 +316,16 @@ do cliente. Sem `null`, sem chave vazia, sem metadado que não serve ao atendime
 tipados, não encapsulados em string. Indentado e legível — **não minificar**, a plataforma já minifica no
 envio e estes arquivos são revisados por humanos.
 
+**R27a1 — Menos funções é mais barato que arquivos menores.** O sempre-ativo paga a **descrição** de cada
+função em todo turno; o **arquivo** que ela retorna, não. Funda o que é sempre chamado no mesmo trecho do
+fluxo numa função só, e mantenha separada apenas a que é raramente acionada. Partir um arquivo grande em
+duas funções piora o custo, porque paga mais uma descrição em todo turno.
+*Motivo:* a intuição puxa para o lado errado — enxugar JSON parece economia e quase não é; cortar uma função
+é economia permanente.
+
 **R27b — Responder só o subconjunto perguntado.** Ao processar o retorno de uma função que carrega uma base
 grande, responda **apenas** com o que foi perguntado. Nunca cole a base inteira na conversa.
-*Motivo:* o retorno persiste no histórico e é reenviado a cada turno seguinte. E base inteira na tela faz o
+*Motivo:* base inteira na tela faz o
 modelo misturar itens que ninguém perguntou.
 
 **R27c — Tolerância fuzzy só dentro da mesma entidade.** Quando uma função valida um dado informado pelo
