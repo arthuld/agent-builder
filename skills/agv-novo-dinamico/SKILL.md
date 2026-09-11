@@ -168,6 +168,7 @@ alta, sem acento. Se o material de origem nomear fora do padrão (`IA_CPF`, `cam
 normalize e **registre a normalização** numa nota no topo do dicionário de variáveis.
 *Motivo:* a plataforma interpola pelo token exato. Nome divergente não gera erro — chega vazio ao painel do
 atendente.
+**Única exceção:** a coluna **Variável** do dicionário traz o nome **sem** os `__` (`IA_CAMPO`), porque é ali que a plataforma registra o campo. Em todo o resto — prompt, card, referências cruzadas — o token vai com os underscores.
 
 **R2 — Quatro colunas, sempre.** O dicionário de variáveis tem exatamente: `Variável | Descrição | Regra de
 Validação | Funções`. A coluna de validação carrega obrigatoriedade, formato ou ENUM completo, e o fallback.
@@ -178,7 +179,7 @@ vira decisão do modelo em runtime.
 Duas categorias, com verificações diferentes:
 - *Variáveis de coleta* (nome, documento, data, item de interesse): basta o passo de coleta em prosa. Não
   precisam do token no prompt — exigi-lo só engorda o custo sempre-ativo.
-- *Variáveis de controle* (fila, resolução, classificação da demanda, observações): **precisam ser nomeadas
+- *Variáveis de controle* (fila, resolução, classificação da demanda): **precisam ser nomeadas
   explicitamente pelo token**, porque nenhum passo de coleta as alimenta. Só instrução direta faz o modelo
   preenchê-las. Ausência aqui é bug, não estilo.
 
@@ -187,10 +188,12 @@ e a define **antes** de chamar a função. Proibido acionar transbordo com fila 
 atendente de destino.
 *Motivo:* transbordo sem fila cai em lugar nenhum, e o usuário fica esperando.
 
-**R5 — Variável de observações livres.** Declare uma variável de texto livre, curta e opcional, para os
-sinais que não cabem em nenhum campo dedicado: demanda fora do escopo, item solicitado que o cliente não
-oferece, falha de triagem, demanda não identificada.
-*Motivo:* sem ela, esses sinais morrem na instrução e nunca chegam ao atendente humano.
+**R5 — Não declare variável de observações livres.** Os sinais que não cabem em campo dedicado — demanda
+fora do escopo, item que o cliente não oferece, falha de triagem, demanda não identificada — já chegam ao
+atendente pelo **otto resumo**, função predefinida da plataforma.
+*Motivo:* uma variável de observações reimplementa capacidade nativa e paga token em todo turno, porque cada
+ponto do prompt que a alimenta é sempre-ativo. Mesma razão pela qual não existe função de leitura de
+carteirinha: o modelo já lê imagem.
 
 **R6 — Três estados de ausência, nunca o mesmo texto.**
 - `"Não Informado"` — o usuário **recusou explicitamente** um dado já perguntado.
@@ -208,15 +211,15 @@ das três:
 - **Ação/transbordo** — qualificação completa + coleta → fila correspondente.
 - **Informação** — o agente responde pela base, pergunta se há mais alguma coisa e **encerra como
   resolvido**, sem fila.
-- **Repasse simples** — demanda fora do escopo que exige ação humana: **coleta mínima** (só o nome + a
-  demanda em observações) e transbordo, **sem** triagem completa.
+- **Repasse simples** — demanda fora do escopo que exige ação humana: **coleta mínima** (só o nome) e
+  transbordo, **sem** triagem completa. A demanda em si o otto resumo entrega.
 
 *Motivo:* não coletar dado desnecessário para o que só será repassado, e não acionar humano para o que o
 agente resolve sozinho.
 
 **R8 — Fallback de classificação.** Se a variável de entrada que traz a demanda chegar vazia ou com valor
 fora do ENUM esperado, defina o que fazer — nunca deixe essa borda implícita. Padrão: perguntar o mínimo
-(normalmente só o nome), registrar em observações e transferir para a fila geral.
+(normalmente só o nome) e transferir para a fila geral.
 *Motivo:* é a borda mais frequente em produção e a que ninguém testa.
 
 **R9 — O transbordo é o handoff único.** **Toda** trilha executa a função de transbordo, inclusive a de
@@ -434,8 +437,7 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
   a chamada do transbordo.
 - **Trilha B** — quais funções respondem o quê, a pergunta de fechamento ("posso ajudar em mais alguma
   coisa?") e o encerramento com resolução positiva. **Ainda executa o transbordo** (R9).
-- **Trilha C** — coleta mínima, registro da demanda em observações, fila e transbordo. Uma linha explícita
-  proibindo a coleta completa aqui.
+- **Trilha C** — coleta mínima, fila e transbordo. Uma linha explícita proibindo a coleta completa aqui.
 - **Regra de Tentativas e Transbordo** — o limite de R10 e o que fica `"Não coletado"`.
 - **Linguagem e Formato** — tamanho de mensagem, listas numeradas com teto, emojis, e a regra do asterisco
   único (R24).
@@ -470,17 +472,20 @@ Duas notas em blockquote, depois a tabela. Nesta ordem.
 
 | Variável | Descrição | Regra de Validação | Funções |
 | --- | --- | --- | --- |
-| `__IA_CAMPO__` | [o que é] | Obrigatório/Opcional. Formato ou ENUM completo. Fallback. | `nome_funcao` → parâmetro `nome_param` |
+| `IA_CAMPO` | [o que é] | Obrigatório/Opcional. Formato ou ENUM completo. Fallback. | `nome_funcao` → parâmetro `nome_param` |
 ```
 
-**Núcleo canônico de controle.** Estas quatro existem em todo agente; as de coleta se acrescentam a elas:
+Na coluna **Variável** o nome vai **sem** os underlines duplos — é assim que a plataforma registra o campo. Os
+`__` são delimitadores de interpolação e permanecem em todo o resto: prompt, `clienteinfo.json` e as
+referências cruzadas dentro das outras colunas.
+
+**Núcleo canônico de controle.** Estas três existem em todo agente; as de coleta se acrescentam a elas:
 
 | Variável | Papel |
 | --- | --- |
 | `__IA_MOTIVO_CONTATO__` | Classifica a demanda logo após a saudação; determina trilha e fila |
 | `__IA_ATENDIMENTO_FILA__` | Fila humana de destino; obrigatória sempre que a resolução for negativa |
 | `__IA_ATENDIMENTO_RESOLVIDO__` | Único parâmetro obrigatório em toda chamada de transbordo |
-| `__IA_OBSERVACOES__` | Texto livre para sinais sem variável dedicada |
 
 A coluna de validação é onde mora a lógica: ENUM completo, condição de obrigatoriedade por trilha, regra de
 máscara e fallback. Descrição sem validação é campo sem regra.
@@ -511,8 +516,8 @@ tokens depois, pareados por índice. Tamanhos diferentes desalinham o card em si
             {
                 "titulo": "Resumo do Atendimento",
                 "informacoes": [
-                    ["Resolvido pel[o/a] [Agente]", "Fila", "Observações"],
-                    ["__IA_ATENDIMENTO_RESOLVIDO__", "__IA_ATENDIMENTO_FILA__", "__IA_OBSERVACOES__"]
+                    ["Resolvido pel[o/a] [Agente]", "Fila"],
+                    ["__IA_ATENDIMENTO_RESOLVIDO__", "__IA_ATENDIMENTO_FILA__"]
                 ]
             }
         ]
