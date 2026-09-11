@@ -73,7 +73,7 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 
 | Verificar | Violação |
 | --- | --- |
-| Toda variável declarada tem algo que a preencha | Variável em `variaveis.md` sem passo de coleta nem menção no prompt. **Controle** (fila, resolução, trilha, observações) precisa do token nomeado; **coleta** basta em prosa |
+| Toda variável declarada tem algo que a preencha | Variável em `variaveis.md` sem passo de coleta nem menção no prompt. **Controle** (fila, resolução, trilha) precisa do token nomeado; **coleta** basta em prosa |
 | Variável e card batem | Token em `variaveis.md` ausente do `clienteinfo.json`, ou o inverso — chega vazia ao atendente |
 | Arrays do card pareados | Rótulos e tokens com tamanhos diferentes no mesmo bloco — desalinha em silêncio |
 | Grafia de fila consistente | Mesma fila escrita diferente entre `agente.md`, `variaveis.md` e o manual de transbordo. **Comparar entre os arquivos do cliente**, nunca contra uma lista padrão — o cliente pode ter filas próprias |
@@ -138,8 +138,9 @@ for f in ferramentas/manuais/*.md; do echo "$(grep -c '^## ' "$f") $f"; done
 grep -rl 'Tool Specification' ferramentas/manuais/
 
 # variável declarada e ausente do card
-comm -23 <(grep -oE '__IA_[A-Z_]+__' config/variaveis.md | sort -u) \
-         <(grep -oE '__IA_[A-Z_]+__' config/clienteinfo.json | sort -u)
+comm -23 <(grep -oE '^\| `_{0,2}IA_[A-Z_]+_{0,2}`' config/variaveis.md | grep -oE 'IA_[A-Z_]+' | sed 's/_*$//' | sort -u) \
+         <(grep -oE 'IA_[A-Z_]+' config/clienteinfo.json | sed 's/_*$//' | sort -u)
+# ancora na coluna Variável (sem os `__`) e normaliza contra o card (com os `__`)
 
 # negrito duplo no que vira prompt
 grep -c '\*\*' config/agente.md

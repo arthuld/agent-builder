@@ -167,6 +167,7 @@ alta, sem acento. Se o material de origem nomear fora do padrão, normalize e **
 numa nota no topo do dicionário.
 *Motivo:* a plataforma interpola pelo token exato. Nome divergente não gera erro — chega vazio ao painel do
 atendente.
+**Única exceção:** a coluna **Variável** do dicionário traz o nome **sem** os `__` (`IA_CAMPO`), porque é ali que a plataforma registra o campo. Em todo o resto — prompt, card, referências cruzadas — o token vai com os underscores.
 
 **R2 — Quatro colunas, sempre.** O dicionário de variáveis tem exatamente estas colunas, nesta ordem:
 `Variável | Descrição | Regra de Validação | Funções`. A coluna de validação carrega obrigatoriedade,
@@ -176,16 +177,18 @@ vira decisão do modelo em runtime.
 
 **R3 — Toda variável declarada precisa de algo que a preencha.** Declarar e definir fallback não basta.
 - *Variáveis de coleta* (nome, documento, data, convênio): basta o bloco de coleta em prosa.
-- *Variáveis de controle* (fila, resolução, trilha, observações): **precisam ser nomeadas explicitamente pelo
+- *Variáveis de controle* (fila, resolução, trilha): **precisam ser nomeadas explicitamente pelo
   token**, porque nenhum bloco de coleta as alimenta. Ausência aqui é bug, não estilo.
 
 **R4 — Variável de roteamento obrigatória.** Declare uma variável de fila e defina-a **antes** de chamar o
 transbordo. Proibido acionar transbordo com fila em branco quando existe atendente de destino.
 *Motivo:* transbordo sem fila cai em lugar nenhum, e o usuário fica esperando.
 
-**R5 — Variável de observações livres.** Texto livre, curto e opcional, para sinais sem campo dedicado:
-demanda fora do escopo, tentativas esgotadas, opção não reconhecida, convênio sem cobertura.
-*Motivo:* sem ela esses sinais morrem na instrução e nunca chegam ao atendente.
+**R5 — Não declare variável de observações livres.** Sinais sem campo dedicado — demanda fora do escopo,
+tentativas esgotadas, opção não reconhecida, convênio sem cobertura — já chegam ao atendente pelo **otto
+resumo**, função predefinida da plataforma.
+*Motivo:* reimplementar capacidade nativa paga token em todo turno, porque cada ponto do prompt que alimenta
+a variável é sempre-ativo.
 
 **R6 — Três estados de ausência, nunca o mesmo texto.**
 - `"Não Informado"` — o usuário **recusou explicitamente** um dado já perguntado.
@@ -227,7 +230,7 @@ preenchidos** nos parâmetros. A regra de confidencialidade não pode impedir o 
 
 **R12 — Navegação e tentativas.** O número é interpretado no contexto do menu que está na tela. Aceite
 também atalho por texto livre quando reconhecível. Após N tentativas inválidas (padrão 2), vá para a fila de
-fallback registrando o motivo em observações.
+fallback.
 
 **R13 — Pergunta fora do menu tem tratamento próprio.** O usuário pode perguntar qualquer coisa a qualquer
 momento. Responda pela base, pergunte *"Posso ajudar em algo mais?"* e bifurque na variável de resolução:
@@ -519,8 +522,12 @@ Duas notas em blockquote, depois a tabela de **exatamente quatro colunas**. Nest
 
 | Variável | Descrição | Regra de Validação | Funções |
 | --- | --- | --- | --- |
-| `__IA_CAMPO__` | [o que é] | Obrigatório/Opcional. Formato ou ENUM completo. Fallback. | `nome_funcao` → parâmetro `nome_param` |
+| `IA_CAMPO` | [o que é] | Obrigatório/Opcional. Formato ou ENUM completo. Fallback. | `nome_funcao` → parâmetro `nome_param` |
 ```
+
+Na coluna **Variável** o nome vai **sem** os underlines duplos — é assim que a plataforma registra o campo. Os
+`__` são delimitadores de interpolação e permanecem em todo o resto: prompt, `clienteinfo.json` e as
+referências cruzadas dentro das outras colunas.
 
 **Núcleo canônico de controle** — presente em todo agente estático:
 
@@ -529,7 +536,6 @@ Duas notas em blockquote, depois a tabela de **exatamente quatro colunas**. Nest
 | `__IA_TRILHA__` | Código + rótulo da opção percorrida |
 | `__IA_ATENDIMENTO_FILA__` | Fila humana de destino |
 | `__IA_ATENDIMENTO_RESOLVIDO__` | Único parâmetro obrigatório em toda chamada de transbordo |
-| `__IA_OBSERVACOES__` | Texto livre para sinais sem campo dedicado |
 
 No rodapé, uma nota de aplicação: variáveis a cadastrar na plataforma, comportamento do nó de decisão de
 resolução, e o que muda se ele não existir.
@@ -555,8 +561,8 @@ depois, pareados por índice. Tamanhos diferentes desalinham o card em silêncio
             {
                 "titulo": "Resumo do Atendimento",
                 "informacoes": [
-                    ["Trilha", "Resolvido", "Fila", "Observações"],
-                    ["__IA_TRILHA__", "__IA_ATENDIMENTO_RESOLVIDO__", "__IA_ATENDIMENTO_FILA__", "__IA_OBSERVACOES__"]
+                    ["Trilha", "Resolvido", "Fila"],
+                    ["__IA_TRILHA__", "__IA_ATENDIMENTO_RESOLVIDO__", "__IA_ATENDIMENTO_FILA__"]
                 ]
             }
         ]
