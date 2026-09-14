@@ -286,6 +286,20 @@ proximidade no texto — e a regra de segurança é a que está mais longe do fl
 
 ## Encerramento — o ponto de falha nº 1
 
+**R14d — Nenhum passo repergunta o que a conversa já resolveu.** A cláusula vai **na linha do passo**, não
+no cabeçalho:
+
+> Dado que o usuário já informou espontaneamente é preenchido **sem perguntar** — inclusive quando a
+> primeira mensagem já aponta a opção do menu.
+> Lista de **coleta** (unidades, turnos, valores de um campo) mostra só o que se aplica ao item já
+> identificado; opção única se confirma, não se oferece em lista.
+
+Isso **não** vale para o menu da árvore: ali a numeração é contrato (R10) e filtrar deslocaria os números.
+
+*Motivo:* a regra genérica no topo do fluxo não basta. Medida num agente que a tinha: reperguntou o motivo
+que a primeira mensagem já declarava, e ofereceu três unidades para um serviço que só existe em uma. O
+modelo lê o passo que executa, não o parágrafo de abertura.
+
 **R15 — Executar é uma ação; anunciar não realiza.** Toda trilha termina com a **execução** da função de
 transbordo. **Proibido escrever "vou te transferir" / "estou te encaminhando" sem executar a função na mesma
 resposta.**

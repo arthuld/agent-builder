@@ -277,6 +277,19 @@ caso de borda. Declare a ordem uma vez, em Regras de Segurança:
 *Motivo:* é a única borda que o próprio prompt cria. Sem ordem declarada, o modelo resolve o empate por
 proximidade no texto — e a regra de segurança é a que está mais longe do fluxo.
 
+**R10c — Nenhum passo repergunta o que a conversa já resolveu.** Duas formas, as duas medidas em produção.
+A cláusula vai **na linha do passo**, não no cabeçalho do fluxo:
+
+> Dado que o usuário já informou espontaneamente é preenchido **sem perguntar** — inclusive a demanda
+> declarada na primeira mensagem.
+> Lista de opções mostra **apenas as que se aplicam** ao item já identificado. Opção única se confirma, não
+> se oferece em lista.
+
+*Motivo:* a regra genérica no topo do fluxo **não basta**. Medida num agente que a tinha escrita: ele
+reperguntou se era agendamento ou dúvida depois de o usuário abrir com *"quero agendar uma acupuntura"*, e
+ofereceu três unidades para um serviço que só existe em uma — o usuário reclamou, e o agente repetiu a mesma
+lista. O modelo lê o passo que está executando, não o parágrafo de abertura da seção.
+
 ## Funções
 
 **R11 — Descrição da função ≤ 950 caracteres.** É o texto registrado na API. Sem saudação, sem "esta função
