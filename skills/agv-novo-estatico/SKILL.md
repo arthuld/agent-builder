@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Criar Agente Virtual Estático (Fluxo por Menu)
@@ -20,6 +20,27 @@ trilha termina na função de transbordo.
 Tudo que ela precisa está neste arquivo. **Não** consulte convenções externas, arquivos de instrução do
 repositório, nem a configuração de outro cliente. Se houver convenções externas disponíveis e elas
 **contradisserem** este arquivo, pare e diga qual é a divergência — não escolha em silêncio.
+
+## O modelo alvo
+
+O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
+plataforma não expõe. Três consequências valem para tudo que vem abaixo:
+
+- **Saída fechada sempre que couber.** Enum no schema (R21), template literal (R15), tabela de decisão.
+  Modelo pequeno erra menos escolhendo de uma lista do que redigindo livremente.
+- **Toda borda escrita.** Modelo pequeno não infere o passo que falta — improvisa. Borda não escrita é
+  comportamento inventado.
+- **Prompt um pouco mais longo e mais explícito** que o de um modelo maior. Feche as bordas primeiro, meça
+  depois, corte por último.
+
+O fluxo em menu joga a favor aqui: entrada de dígito e trilha em tabela são mais fáceis para um modelo
+pequeno do que classificação semântica aberta. **O que não joga a favor é o estado** — saber em qual menu
+está, contar tentativas, e distinguir escolha de opção de pergunta fora do menu a cada turno. Onde houver
+escolha entre resolver por estado ou por tabela, escolha a tabela.
+
+Medição de token: `tiktoken`, encoding `o200k_base`.
+
+**Se o modelo mudar, revise esta seção antes de tudo.**
 
 ## O estático é o dinâmico mais uma camada de menu
 
@@ -116,7 +137,7 @@ default.
 | **Ação de cada opção** | O que vem depois de `>` são ações em sequência, não opções. Deduzir a ação inverte o fluxo. |
 | **Fila real por trilha** | Rótulo em prosa ("equipe de agendamento", "financeiro") **não é** identificador. Transbordo com fila inválida quebra o roteamento em silêncio. |
 | **Fila de fallback** | Destino de opção não reconhecida e de tentativas esgotadas. Sem ele, o agente fica preso no menu. |
-| **Parâmetros `required` do schema** | Ver R31: campo com `enum`/`pattern`/`format` rejeita a sentinela e a chamada é descartada sem erro visível. |
+| **Parâmetros `required` do schema** | Ver R21: campo com `enum`/`pattern`/`format` rejeita a sentinela e a chamada é descartada sem erro visível. A saída é declarar a sentinela no `enum`, não afrouxar o campo. |
 | **Grafia comercial do cliente** | Aparece na primeira mensagem que todo usuário lê. Não inventar acento, espaço ou caixa. |
 | **Nome e gênero do agente** | Gênero não se deduz do nome. A concordância do prompt inteiro depende disso. |
 | **Texto literal da saudação** | É transcrito ao pé da letra. Se o cliente não tiver uma, proponha e peça aprovação — nunca assuma. |
@@ -240,6 +261,29 @@ resposta negativa encerra como resolvido; resposta positiva ou nova demanda reto
 **R14 — Fallback de roteamento.** Defina o destino de opção não reconhecida, tentativas esgotadas e demanda
 não identificada. Nunca deixe essa borda implícita — é a mais frequente em produção e a que ninguém testa.
 
+**R14a — Falha de ferramenta tem escada própria.** Erro ou timeout **não** é retorno vazio, e os dois não
+podem ter o mesmo tratamento. Escreva no prompt gerado:
+
+> Refazer a **mesma** chamada 1× no mesmo turno, em silêncio. Persistindo, informar instabilidade e seguir
+> **sem** transbordar. Transbordar só quando a **mesma** operação acumular 3 falhas.
+
+*Motivo:* sem esta regra a borda fica implícita, e modelo pequeno diante de borda implícita improvisa — em
+geral transbordando na primeira falha, ou anunciando ao usuário um erro técnico que não sabe descrever.
+
+**R14b — Retorno vazio não é negação.** Função que volta sem itens significa "não veio", não "não existe".
+A **única** autorização para dizer que o cliente não oferece algo é uma lista de exclusão explícita,
+informada pelo cliente e escrita no prompt.
+*Motivo:* negar com base em vazio produz recusa de um serviço real, e o usuário desiste de um atendimento
+que a empresa presta. É a regra que falta com mais frequência.
+
+**R14c — Precedência entre regras, declarada.** O prompt tem quatro campos, e eles podem se contradizer em
+caso de borda. Declare a ordem uma vez, em Regras de Segurança:
+
+> Havendo conflito entre duas regras, vence a de Regras de Segurança. Nunca escolher em silêncio.
+
+*Motivo:* é a única borda que o próprio prompt cria. Sem ordem declarada, o modelo resolve o empate por
+proximidade no texto — e a regra de segurança é a que está mais longe do fluxo.
+
 ## Encerramento — o ponto de falha nº 1
 
 **R15 — Executar é uma ação; anunciar não realiza.** Toda trilha termina com a **execução** da função de
@@ -280,11 +324,29 @@ transferir sem X"*, *"proibido sem Y"*) faz o modelo ler a transferência como a
 
 ## Funções e schema
 
-**R21 — Sentinela precisa ser compatível com o JSON Schema.** Se o schema registrado na API declara o
-parâmetro com `enum`, `pattern` ou `format`, a sentinela `"Não coletado"` **viola o schema e a chamada é
-descartada em silêncio** — o sintoma é *"o agente chega na função e não faz nada"*.
-Só os campos realmente universais da árvore podem ser `required`; os condicionais precisam ser string livre,
-sem restrição de formato. **Registre isso no manual da função de transbordo.**
+**R21 — A sentinela entra no `enum`; não se afrouxa o schema para caber nela.** Se o parâmetro declara
+`enum`, `pattern` ou `format` e o agente manda `"Não coletado"`, a chamada **viola o schema e é descartada
+em silêncio** — o sintoma é *"o agente chega na função e não faz nada"*.
+
+A saída é **declarar as sentinelas como valores válidos**, não remover a restrição:
+
+```json
+"pedido_medico": { "type": "string",
+                   "enum": ["Sim", "Não", "Não Informado", "Não coletado"] }
+```
+
+Só os campos realmente universais da árvore podem ser `required`. Os condicionais continuam opcionais — mas
+**opcional não é o mesmo que sem restrição de valor**. **Registre o enum no manual da função de transbordo.**
+
+*Motivo:* o conjunto de valores já era finito; só não estava declarado. Trocar o enum por string livre
+resolve o descarte e cria um problema maior: devolve ao modelo um campo aberto onde ele pode escrever
+qualquer coisa. Num agente que roda em modelo pequeno, o enum é a única restrição estrutural disponível —
+a plataforma não expõe `allowed_tools`, `reasoning_effort` nem modo strict. Desarmá-lo é abrir mão do
+último controle que não depende de o modelo obedecer.
+
+*Se o formulário de função não aceitar `enum`:* aí sim o campo é string livre, e a compensação vai para o
+prompt — a lista de valores válidos escrita literalmente no bloco da trilha, com a sentinela incluída.
+Registre essa limitação no relatório final; ela muda o que se pode esperar do agente.
 
 **R22 — Distinguir argumento de função e variável de contexto.** Instruir o agente a preencher um argumento
 que não existe no schema é outra causa de chamada descartada. Se não estiver claro, **pergunte** — não
@@ -440,6 +502,7 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 
 ## 2. Diretrizes de Atendimento
 
+### ⚠️ Regras Críticas
 ### 📌 Regra geral de dados
 ### 🧭 Fluxo Estático — Menu Principal
 ### 🧭 Submenus
@@ -448,11 +511,13 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 ### ✅ Encerramento Obrigatório da Trilha (ação, não mensagem)
 ### 🔁 Regra de Navegação e Tentativas
 ### ❓ Perguntas Fora do Menu
+### 🧯 Bordas
 
 ---
 
 ## 3. Regras de Conduta
 
+### 📐 Formato da Resposta
 ### ✍️ Linguagem e Formato
 ### 💬 Tom e Acolhimento
 
@@ -470,6 +535,21 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 
 Blocos condicionais, conforme a ficha: `### 🔒 Consentimento` só se a plataforma **não** tratar upstream;
 blocos de borda próprios do domínio (ex: convênio sem cobertura → oferecer particular ou atendente).
+
+**Os três blocos que existem por causa do modelo pequeno:**
+
+- **Regras Críticas** — de 3 a 5 travas, no topo do campo, antes do menu. São as de violação binária e cara:
+  o que o agente jamais confirma, o que jamais deduz, e a formulação literal de execução (R15). Nada de tom,
+  nada de formato, nada que dependa de julgamento.
+  *Motivo:* Diretrizes é o campo mais longo. Trava enterrada no meio dele compete com a árvore inteira de
+  menus; trava no topo é a primeira coisa lida ao entrar no campo.
+- **Bordas** — tabela `situação | ação`, uma linha por borda: retorno vazio (R14b), falha técnica (R14a),
+  tentativas esgotadas (R12), conflito entre regras (R14c). Tabela, não prosa: a borda tem que ser
+  encontrável por varredura visual.
+- **Formato da Resposta** — o contrato de saída, em 4 a 6 linhas: quantas perguntas por mensagem, teto de
+  itens em lista, se numera, se usa emoji, e qual mensagem é template literal.
+  *Motivo:* sem contrato, o modelo escolhe o formato a cada turno — e modelo pequeno escolhe mal com
+  frequência. Não repetir aqui o que já estiver em Linguagem e Formato.
 
 ## 2.3 Menu, blocos e tabela de trilhas
 
@@ -643,7 +723,8 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 4.  Seção de encerramento presente, com a formulação "ação, não mensagem"
 5.  Nenhum exemplo de diálogo pede confirmação depois do resumo
 6.  Nenhuma instrução descreve a fala de transferência sem a execução
-7.  Sentinelas documentadas e compatíveis com o JSON Schema (R21)
+7.  Toda sentinela usada no prompt consta do `enum` do parâmetro, ou o parâmetro não tem `enum` (R21).
+    Schema afrouxado para acomodar sentinela é defeito, não solução
 8.  Variável de resolução com regra de preenchimento em 100% dos caminhos
 9.  Toda variável declarada tem algo que a preencha; as de controle pelo token
 10. Todo token do card tem variável declarada, e os arrays têm o mesmo tamanho
@@ -655,7 +736,14 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 16. Nenhum caminho, nome de arquivo ou `§N` no conteúdo de prompt
 17. O prompt tem exatamente 4 seções `##`
 18. Nenhum nome próprio de outro cliente
+19. O bloco Regras Críticas existe, é a primeira coisa das Diretrizes, e tem de 3 a 5 itens
+20. O bloco Bordas cobre as quatro: retorno vazio (R14b), falha técnica (R14a), tentativas esgotadas (R12),
+    conflito entre regras (R14c)
+21. Existe bloco de Formato da Resposta em Regras de Conduta
 ```
+
+Os itens 19 a 21 existem porque o agente roda em modelo pequeno: são as lacunas que fazem um `nano`
+improvisar. Nenhum deles reduz token — todos aumentam. É deliberado.
 
 ---
 
@@ -679,6 +767,7 @@ o que está pronto como documento interno, e o que não sobe até a pendência f
 
 ## Changelog
 
+- **2.1.0** — Adequação ao `gpt-5.4-nano`. Modelo alvo declarado, com as consequências de escrita que derivam dele. Acrescentados os três blocos que faltavam no prompt gerado — **Regras Críticas** no topo das Diretrizes, **Bordas** e **Formato da Resposta** — e as regras de borda que não existiam: falha técnica com escada própria e precedência entre regras declarada. Motivo: a orientação oficial do nano pede tarefa estreita, saída fechada e nenhuma borda implícita; borda não escrita é comportamento inventado. **R21 reescrita**: a sentinela passa a ser declarada no `enum` do parâmetro, em vez de o schema ser afrouxado para acomodá-la. Com a plataforma sem `allowed_tools`, `reasoning_effort` nem modo strict, o enum é a única restrição estrutural disponível — desarmá-lo era abrir mão do último controle que não depende de o modelo obedecer.
 - **2.0.0** — Reescrita autocontida. Antes, 14 regras eram citadas por número de um documento externo; numa
   medição com esse documento fora de alcance, **6 delas viraram buraco** — a taxonomia de trilhas e os
   limites de domínio foram pulados, o fallback de roteamento ficou sem destino, e o formato de quatro colunas

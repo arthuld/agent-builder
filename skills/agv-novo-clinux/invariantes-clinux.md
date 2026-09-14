@@ -4,6 +4,26 @@ Regras que valem para **qualquer** cliente Clinux, cada uma com o motivo. O moti
 motivo é regra que a próxima revisão "simplifica" e reintroduz o defeito que ela existia para evitar. Todas
 saíram de defeito observado em produção ou de auditoria.
 
+**Nenhuma convenção do projeto é citada aqui por número.** Onde esta categoria diverge do Pré Agendamento, a
+convenção divergente vem enunciada por extenso antes de ser negada. Uma exceção a uma regra que o leitor não
+consegue ler é convite a reintroduzir exatamente o defeito que ela evitava — e este arquivo viaja no plugin,
+para workspaces onde o documento de convenções não existe.
+
+## O modelo alvo
+
+O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
+plataforma não expõe. Aqui isso pesa mais do que no Pré Agendamento, por dois motivos:
+
+- **O sempre-ativo é o dobro por função** (*Objetivo* **e** *Condições de execução*), então cada palavra
+  duplicada entre o prompt e um campo de função é paga duas vezes por turno.
+- **O canal de erro do Clinux é o retorno vazio.** Quatro causas distintas — sem vaga, item não liberado para
+  web, parâmetro malformado, parâmetro inexistente — chegam ao modelo como o mesmo símbolo. A desambiguação
+  fica inteiramente por conta de regra escrita, que é o que um modelo pequeno faz pior quando a regra falta.
+
+Consequência prática: **toda borda escrita, saída fechada sempre que couber, e nenhuma regra em dois lugares.**
+
+**Se o modelo mudar, revise esta seção antes de tudo.**
+
 ---
 
 ## 1. Nome de variável é proibido mudar
@@ -12,11 +32,13 @@ Os nomes (`EMPRESA_ID`, `PLANO_ID`, `CPF_DIGITADO`, `PROCEDIMENTOS_GRUPO_ID`…)
 parâmetros nos endpoints do Clinux. Não há camada de tradução: o que está no registro é o que vai na
 requisição.
 
-**Por que importa:** renomear — inclusive para o padrão `__IA_CAMPO__` da Regra 4 do projeto, usado no Pré
+**Por que importa:** renomear — inclusive para o padrão `__IA_CAMPO__` usado no Pré
 Agendamento — quebra a chamada **em silêncio**. Parâmetro que o Clinux não reconhece não gera erro: devolve
 **vazio**, e o agente reporta vazio ao paciente como se não houvesse resultado.
 
-A Regra 4 **não se aplica** a esta categoria. Só nome de **função** entra em discussão de renomeação.
+A convenção de nomenclatura de variável do Pré Agendamento — *toda variável de contexto segue o padrão
+`__IA_CAMPO__`* — **não se aplica** a esta categoria. Aqui o nome da variável é o contrato com o endpoint, e
+não é nosso para escolher. Só nome de **função** entra em discussão de renomeação.
 
 **Apagar tem o mesmo risco.** Variável fora de uso no prompt fica declarada e intacta: pode estar ligada a um
 nó de fluxo estático ou a uma campanha, e variável sem uso **não custa token** — não entra no sempre-ativo.
@@ -214,7 +236,8 @@ A plataforma reenvia a cada turno os 4 campos de prompt **e** os dois campos de 
 função* e *Condições de execução*. Diferente do Pré Agendamento, onde a §2 do manual é documentação que não
 chega ao modelo.
 
-**Consequência:** o limite de 950 caracteres da Regra 7 cobre só o *Objetivo*, que é a menor metade. Numa
+**Consequência:** a convenção do projeto limita a **descrição da função a 950 caracteres** — o que aqui cobre
+só o *Objetivo*, que é a menor metade. Numa
 medição real, o *Objetivo* das 12 funções somou 508 tokens e as *Condições*, 2.303.
 
 **Onde cada regra mora, para não pagar duas vezes:**
@@ -267,5 +290,6 @@ Estar declarada no registro de variáveis **não** significa entrar no card.
 ## 14. Consentimento LGPD: a montante
 
 O consentimento é obtido **antes** do agente. O agente não tem, e não deve ganhar, etapa de consentimento — a
-Regra 14 do projeto não se aplica a esta categoria. Confirmar por cliente, mas não reintroduzir por herança
+convenção do projeto de **exigir consentimento antes do primeiro dado pessoal** não se aplica a esta
+categoria, porque ele já foi obtido a montante. Confirmar por cliente, mas não reintroduzir por herança
 do Pré Agendamento.

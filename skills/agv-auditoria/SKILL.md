@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Auditar Agente Virtual
@@ -44,10 +44,36 @@ Mais de um resultado: confirme qual antes de seguir. Nenhum: diga isso e pare.
 
 ---
 
+## Passo 0 — Determinar a categoria. **Antes** de aplicar critério nenhum.
+
+Há dois tipos de agente neste workspace, e **metade dos critérios abaixo só vale para um deles**. Aplicar os
+critérios errados produz ruído de alta gravidade num relatório que se vende por acionabilidade.
+
+```bash
+# Categoria: Integrado se não houver base estática e os manuais tiverem 2 seções
+ls ferramentas/dados/*.json 2>/dev/null | wc -l     # 0 => Integrado
+head -20 ferramentas/manuais/*.md | grep -c '^## Objetivo da função'   # >0 => Integrado
+```
+
+| Sinal | **Base de conhecimento** | **Integrado** |
+|---|---|---|
+| `ferramentas/dados/*.json` | existe | **não existe** |
+| Seções por manual | 3 | **2** (`Objetivo da função` · `Condições de execução`) |
+| Nome de variável | `__IA_CAMPO__` | **nome do parâmetro do endpoint** (`EMPRESA_ID`, `CPF_DIGITADO`) |
+| Sentinelas de ausência | três estados obrigatórios | **proibidas** em campo obrigatório — retém a chamada e pergunta |
+| Fim do caminho feliz | transbordo | **gravação no sistema** |
+| Retorno vazio | pode indicar ausência na base | **nunca** indica ausência — só a lista de exclusão autoriza negar |
+
+**Declare a categoria detectada no início do relatório.** Onde um critério estiver marcado *(só Base de
+conhecimento)* abaixo, **não o aplique** a um agente Integrado — e vice-versa. Na dúvida sobre a categoria,
+pergunte; não escolha em silêncio.
+
+---
+
 ## Passo 1 — Ler tudo antes de julgar qualquer coisa
 
 `config/agente.md` · `config/variaveis.md` · `config/clienteinfo.json` · todos os
-`ferramentas/manuais/*.md` · todos os `ferramentas/dados/*.json`.
+`ferramentas/manuais/*.md` · todos os `ferramentas/dados/*.json` **quando existirem**.
 
 **Auditoria parcial produz achado falso.** Metade dos defeitos deste tipo de agente é contradição *entre*
 arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo os dois.
@@ -60,8 +86,8 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 
 | Verificar | Violação |
 | --- | --- |
-| Toda trilha termina executando a função de transbordo | Trilha que encerra sem executar. **Única exceção:** recusa de consentimento antes de qualquer coleta |
-| A trilha de informação resolvida **também** executa | "Dúvida sanada → encerrar sem acionar" — deixa a automação de fechamento sem gatilho |
+| *(só Base de conhecimento)* Toda trilha termina executando a função de transbordo | Trilha que encerra sem executar. **Única exceção:** recusa de consentimento antes de qualquer coleta. Num agente **Integrado** o caminho feliz termina em **gravação**, não em transbordo — não reportar como violação |
+| *(só Base de conhecimento)* A trilha de informação resolvida **também** executa | "Dúvida sanada → encerrar sem acionar" — deixa a automação de fechamento sem gatilho |
 | Instrução manda **executar**, não anunciar | "Informe que está sendo encaminhado" sem a execução na mesma resposta |
 | Resumo antes do transbordo é informativo | "Exibir para confirmação" — o agente para e espera um segundo "sim" que ninguém trata |
 | Exemplo de diálogo concorda com a regra | Diálogo com "Confirma para mim:" — few-shot vence regra escrita acima dele |
@@ -77,11 +103,12 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Variável e card batem | Token em `variaveis.md` ausente do `clienteinfo.json`, ou o inverso — chega vazia ao atendente |
 | Arrays do card pareados | Rótulos e tokens com tamanhos diferentes no mesmo bloco — desalinha em silêncio |
 | Grafia de fila consistente | Mesma fila escrita diferente entre `agente.md`, `variaveis.md` e o manual de transbordo. **Comparar entre os arquivos do cliente**, nunca contra uma lista padrão — o cliente pode ter filas próprias |
-| Sentinela compatível com o schema | Campo condicional com `enum`/`pattern`/`format` recebendo `"Não coletado"` — a chamada é descartada **em silêncio** |
+| Sentinela declarada no `enum` | Campo com `enum`/`pattern`/`format` recebendo `"Não coletado"` — a chamada é descartada **em silêncio**. A correção é acrescentar a sentinela ao `enum`, **não** trocar o campo por string livre: num agente que roda em modelo pequeno, o enum é a única restrição estrutural disponível. Schema afrouxado para acomodar sentinela é defeito |
 | Só o universal é `required` | Campo que trilhas sem coleta não preenchem marcado como obrigatório |
-| Função anunciada existe na base | Prompt cita serviço, exame ou item que o `get_*` não retorna |
+| *(só Base de conhecimento)* Função anunciada existe na base | Prompt cita serviço, exame ou item que o `get_*` não retorna |
+| *(só Integrado)* Toda negativa está ancorada | "Não realiza X" sem lista de exclusão explícita. Retorno vazio **não** autoriza negar: significa "não veio", não "não existe" |
 | Tolerância fuzzy limitada à mesma entidade | Aproximação entre entidades diferentes (Tomografia/Angiotomografia). Em dúvida, falhar fechado |
-| Sem valor ambíguo nos dados | `[]` onde o sentido é "todos" — é lido como "nenhum". Sentinela explícita (`["Todos"]`) |
+| *(só Base de conhecimento)* Sem valor ambíguo nos dados | `[]` onde o sentido é "todos" — é lido como "nenhum". Sentinela explícita (`["Todos"]`) |
 | Sem curinga que anula proibição | Item tipo `"Outros"` que autoriza afirmar disponibilidade do que o prompt proíbe |
 
 ### Segurança
@@ -89,7 +116,8 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Verificar | Violação |
 | --- | --- |
 | Documento mascarado ao ecoar no chat | CPF exibido inteiro. **Formato: `***.***.XXX-XX`** — últimos 5 dígitos visíveis. Ausente ou em outro formato é violação |
-| Três estados de ausência distintos | Mesmo texto para os três. `"Não Informado"` = recusou o que foi perguntado · `"Não coletado"` = nunca foi perguntado · `"Não se aplica"` = a trilha deliberadamente não pede |
+| *(só Base de conhecimento)* Três estados de ausência distintos | Mesmo texto para os três. `"Não Informado"` = recusou o que foi perguntado · `"Não coletado"` = nunca foi perguntado · `"Não se aplica"` = a trilha deliberadamente não pede |
+| *(só Integrado)* Nenhuma sentinela em campo obrigatório | Valor de reserva em parâmetro de endpoint. O endpoint responde **vazio**, e o vazio vira "não há resultado" — o bug se disfarça de indisponibilidade. Faltando o dado real, o agente **retém a chamada** e pergunta |
 | Consentimento antes do primeiro dado pessoal | Ausente **quando a plataforma não trata upstream**. A frase é curta, vem antes do primeiro dado, e aguarda resposta; recusa encerra cordialmente **sem transbordo**. "Justificar sob a ótica da LGPD" não é consentimento |
 | Limite de atuação em domínio regulado | Saúde, jurídico ou financeiro sem regra de "sem aconselhamento [domínio]" — obrigatória mesmo que o cliente não peça |
 | Nunca deduzir parâmetro | Instrução que permite supor documento, convênio ou item não informado |
@@ -115,9 +143,9 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Descrição de função e de parâmetro sem conduta | Regra de comportamento na §1 ou na `description` de um parâmetro — sempre-ativo duplicando o prompt |
 | Regra geral de dados declarada uma vez | Repetição de "não memorizar" a cada item, ou duas declarações do mesmo princípio |
 | Sem duplicação entre prompt e manual | Tabela ou regra verbatim nos dois. O custo não é token, é **deriva**: a próxima correção vai num lado só |
-| Um assunto, um arquivo dono | Mesmo fato em dois JSONs de dados |
+| *(só Base de conhecimento)* Um assunto, um arquivo dono | Mesmo fato em dois JSONs de dados |
 | Descrição de função ≤ 950 caracteres | §1 acima do teto — é pago em 100% dos turnos |
-| Manual com exatamente 3 seções | Quarta seção, tipicamente "Tool Specification"/JSON Schema. Ela desloca a numeração e joga as diretrizes para fora do lugar esperado |
+| Manual com o número de seções da categoria | **Base de conhecimento: 3** (`Descrição` · `Diretrizes` · `Exemplos`). **Integrado: 2** (`Objetivo da função` · `Condições de execução`). Seção a mais, tipicamente "Tool Specification"/JSON Schema, desloca a numeração |
 | Prompt com exatamente 4 seções `##` | Quinta seção — a tela da plataforma tem quatro campos, e a quinta não tem onde ser colada |
 | Sem caminho de arquivo no prompt | `config/agente.md`, `§2` ou nome de pasta citados no conteúdo que vira prompt |
 
@@ -128,31 +156,38 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 Rode, não estime. Cada uma já pegou defeito real:
 
 ```bash
-# seções do prompt (esperado 4)
+# seções do prompt (esperado 4) — as duas categorias
 grep -c '^## ' config/agente.md
 
-# manuais fora do padrão de 3 seções
+# manuais fora do padrão — o esperado MUDA com a categoria (Passo 0)
+#   Base de conhecimento: 3 seções   |   Integrado: 2 seções
 for f in ferramentas/manuais/*.md; do echo "$(grep -c '^## ' "$f") $f"; done
 
-# seção de schema que não deveria existir
+# seção de schema que não deveria existir — as duas categorias
 grep -rl 'Tool Specification' ferramentas/manuais/
 
-# variável declarada e ausente do card
-comm -23 <(grep -oE '^\| `_{0,2}IA_[A-Z_]+_{0,2}`' config/variaveis.md | grep -oE 'IA_[A-Z_]+' | sed 's/_*$//' | sort -u) \
-         <(grep -oE 'IA_[A-Z_]+' config/clienteinfo.json | sed 's/_*$//' | sort -u)
-# ancora na coluna Variável (sem os `__`) e normaliza contra o card (com os `__`)
+# variável declarada e ausente do card — as duas categorias
+# o regex NÃO pode ancorar em `IA_`: num agente Integrado as variáveis são
+# nomes de parâmetro de endpoint, e ancorar em IA_ faz os dois lados voltarem
+# vazios — a checagem passa sem ter verificado nada (falso negativo silencioso).
+comm -23 <(grep -oE '^\| `_{0,2}[A-Z][A-Z0-9_]+_{0,2}`' config/variaveis.md | grep -oE '[A-Z][A-Z0-9_]+' | sed 's/_*$//' | sort -u) \
+         <(grep -oE '[A-Z][A-Z0-9_]{2,}' config/clienteinfo.json | sed 's/_*$//' | sort -u)
 
-# negrito duplo no que vira prompt
+# negrito duplo no que vira prompt — as duas categorias
 grep -c '\*\*' config/agente.md
 
-# caminho de arquivo citado no prompt
+# caminho de arquivo citado no prompt — as duas categorias
 grep -nE 'config/|ferramentas/|§[0-9]' config/agente.md
 
-# valor ambíguo nos dados
-grep -n '\[\]\|null' ferramentas/dados/*.json
+# valor ambíguo nos dados — SÓ Base de conhecimento
+[ -d ferramentas/dados ] && grep -n '\[\]\|null' ferramentas/dados/*.json
 
-# card é JSON válido
+# card é JSON válido — as duas categorias
 python -c "import json;json.load(open('config/clienteinfo.json',encoding='utf-8'))"
+
+# toda negativa do prompt está ancorada — SÓ Integrado
+# (num agente Integrado, "não realiza" só pode vir de lista de exclusão explícita)
+grep -nE 'não realiza|não atende|não oferece' config/agente.md
 ```
 
 ---
@@ -206,6 +241,7 @@ conversa — esta skill não escreve no cliente.
 
 ## Changelog
 
+- **2.1.0** — Passo 0: determinar a categoria do agente antes de aplicar critério. Metade dos critérios só vale para agentes com base de conhecimento, e aplicá-los a um agente integrado produzia ruído de alta gravidade. Corrigido um **falso negativo silencioso**: a checagem de variável ausente do card ancorava o regex em `IA_`, e num agente integrado — onde as variáveis são nomes de parâmetro de endpoint — os dois lados voltavam vazios e a verificação passava sem ter verificado nada. Critério de sentinela alinhado à R21 do modelo estático.
 - **2.0.0** — Autocontida e estruturada. Antes eram 934 palavras de prosa com **dois cabeçalhos** e 15 regras
   citadas por número de um documento externo. Numa medição com esse documento fora de alcance, a skill ainda
   achou 22 defeitos — porque trazia glosa inline —, mas em 5 regras a glosa era insuficiente e o auditor
