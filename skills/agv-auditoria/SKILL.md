@@ -94,6 +94,8 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Toda demanda tem destino | Valor de intenção sem trilha, ou trilha sem fila |
 | Fallback de intenção não reconhecida existe | Borda implícita: nada define o que fazer com valor vazio ou fora do ENUM |
 | Trilha de repasse coleta o mínimo | Triagem cadastral completa para demanda que só será repassada |
+| Passo não repergunta dado já dado | Passo de coleta sem cláusula própria de "se já informado, preencher sem perguntar". **Regra genérica no cabeçalho do fluxo não conta** — medida em produção: existia, e o agente ainda assim reperguntou se era agendamento ou dúvida depois de o usuário abrir com "quero agendar uma acupuntura" |
+| Lista de opções filtrada pelo que se aplica | Instrução manda listar o conjunto fixo (as N unidades, todos os turnos) quando o item já identificado restringe o conjunto — ou o agente reabre como pergunta um fato que ele mesmo afirmou turnos antes. Oferece escolha que será negada depois, e o usuário percebe |
 
 ### Lógica
 
