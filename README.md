@@ -27,14 +27,17 @@ claude plugin install agent-builder@agent-builder
 Instalado, valem em **qualquer projeto** — não é preciso clonar o repositório nem montar pasta. Custo
 sempre-ativo do conjunto: **~425 tokens** por sessão, medido com `claude plugin details agent-builder`.
 
-**Gemini CLI** — tem instalador próprio:
+**Antigravity CLI** (`agy`) — tem gerenciador de plugin próprio, no mesmo padrão do Claude Code:
 
 ```bash
-gemini skills install https://github.com/arthuld/agent-builder.git --path skills
+agy plugin install agent-builder@agent-builder
 ```
 
+O alvo aceita `plugin@marketplace`; `agy plugin list` mostra o que está importado. Quem vinha do Gemini CLI
+tem ainda `agy plugin import gemini`, que traz as extensões já instaladas lá.
+
 **opencode** — não tem comando de instalação; descobre por diretório. Clone o repositório e copie as pastas
-`agv-*` para `~/.agents/skills/`, caminho interoperável lido tanto pelo opencode quanto pelo Gemini CLI
+`agv-*` para `~/.agents/skills/`, caminho interoperável lido tanto pelo opencode quanto pelo Antigravity
 (`~/.config/opencode/skills/` também serve, mas só o opencode):
 
 ```powershell
@@ -148,10 +151,10 @@ Cada regra dentro de uma skill vem com o motivo. Regra sem motivo é regra que a
 
 | Skill | Versão | Validação |
 |---|---|---|
-| `agv-novo-dinamico` | 1.0.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
-| `agv-novo-estatico` | 2.0.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
-| `agv-novo-clinux` | 1.0.0 | GREEN 3/3 |
-| `agv-auditoria` | 2.0.0 | GREEN 2/2 · casos sem critério de julgamento: 5 → 0 e 1 |
+| `agv-novo-dinamico` | 1.1.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
+| `agv-novo-estatico` | 2.1.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
+| `agv-novo-clinux` | 1.1.0 | GREEN 3/3 |
+| `agv-auditoria` | 2.1.0 | GREEN 2/2 · casos sem critério de julgamento: 5 → 0 e 1 |
 | `agv-indice` | 1.0.0 | 4/4 na tabela de decisão |
 | `agv-relatorio-homolog` | 2.0.0 | GREEN 1/1 |
 | `agv-relatorio-prod` | 2.0.0 | GREEN 1/1 |
@@ -171,7 +174,7 @@ a pasta na mesma altura sem perguntar, e não abriu a configuração do vizinho.
 | **`/agv-novo-animati`** | Não existe. Integração animati-netpacs |
 | **Variância dos GREEN de relatório** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. As mudanças são estruturais — aparecem ou não —, mas a variância nunca foi medida |
 | **LICENSE** | O manifesto declara `UNLICENSED` e não há arquivo. Irrelevante enquanto o repositório for privado |
-| **Gemini CLI não foi verificado** | A descoberta no opencode foi conferida de verdade (`opencode debug skill`: 7 de 7). O Gemini não está instalado nesta máquina, então o comando de instalação vem da documentação, não de execução |
+| **Instalação no Antigravity não foi executada ponta a ponta** | O `agy` está instalado e os subcomandos foram conferidos no binário (`agy plugin`: `list`, `import`, `install <target>` com suporte a `plugin@marketplace`). O que não foi feito é instalar **este** repositório por ali e abrir uma sessão para confirmar que as sete skills aparecem — como foi feito no opencode (`opencode debug skill`: 7 de 7) |
 
 ---
 
