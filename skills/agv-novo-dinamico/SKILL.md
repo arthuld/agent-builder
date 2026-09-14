@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, AskUserQuestion
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Criar Agente Virtual de Pré-Atendimento
@@ -26,6 +26,23 @@ sistema, sem nada instalado ao lado.
 
 Se houver convenções externas disponíveis e elas **contradisserem** este arquivo, pare e diga qual é a
 divergência. Não escolha em silêncio.
+
+## O modelo alvo
+
+O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
+plataforma não expõe. Três consequências valem para tudo que vem abaixo:
+
+- **Saída fechada sempre que couber.** Enum no schema, template literal, tabela de decisão. Modelo pequeno
+  erra menos escolhendo de uma lista do que redigindo livremente.
+- **Toda borda escrita.** Modelo pequeno não infere o passo que falta — improvisa. Borda não escrita é
+  comportamento inventado, e é a causa mais frequente de "o agente ignorou a regra".
+- **Prompt um pouco mais longo e mais explícito** que o de um modelo maior. Aqui token e assertividade
+  deixam de apontar na mesma direção: feche as bordas primeiro, meça depois, corte por último.
+
+Medição de token: `tiktoken`, encoding `o200k_base`.
+
+**Se o modelo mudar, revise esta seção antes de tudo** — as escolhas de escrita abaixo derivam dela, e um
+modelo maior torna várias delas desnecessárias.
 
 ## Ordem de execução
 
@@ -231,9 +248,34 @@ tags de relatório sem gatilho: o atendimento nunca é entregue, e o número nun
 *Consequência no schema:* se a trilha de informação não coleta nada, **só a variável de resolução pode ser
 `required`** — nem o nome. Nome obrigatório faz toda dúvida resolvida falhar em silêncio.
 
+Executar é uma ação; anunciar não realiza. Esta formulação vai **literalmente** no prompt gerado:
+
+> Toda trilha termina obrigatoriamente com a execução da função de transbordo. **Executar a função é uma
+> ação — anunciar a transferência em texto não a realiza.**
+
+*Motivo:* é o ponto de falha nº 1 em produção. O paciente sai da conversa acreditando que foi transferido, e
+não foi. Template literal porque modelo pequeno reproduz frase fixa melhor do que obedece a descrição.
+
 **R10 — Tentativas antes de desistir.** Defina o número de tentativas (padrão 2) após o qual o agente para
 de insistir num dado, aciona o transbordo e marca os campos não perguntados como `"Não coletado"`.
 *Motivo:* sem limite, o agente entra em laço com quem não vai responder.
+
+**R10a — Falha de ferramenta tem escada própria.** Erro ou timeout **não** é retorno vazio, e os dois não
+podem ter o mesmo tratamento. Escreva no prompt gerado:
+
+> Refazer a **mesma** chamada 1× no mesmo turno, em silêncio. Persistindo, informar instabilidade e seguir
+> **sem** transbordar. Transbordar só quando a **mesma** operação acumular 3 falhas.
+
+*Motivo:* sem esta regra a borda fica implícita, e modelo pequeno diante de borda implícita improvisa — em
+geral anunciando ao usuário um problema técnico que não sabe descrever, ou transbordando na primeira falha.
+
+**R10b — Precedência entre regras, declarada.** O prompt tem quatro campos, e eles podem se contradizer em
+caso de borda. Declare a ordem uma vez, em Regras de Segurança:
+
+> Havendo conflito entre duas regras, vence a de Regras de Segurança. Nunca escolher em silêncio.
+
+*Motivo:* é a única borda que o próprio prompt cria. Sem ordem declarada, o modelo resolve o empate por
+proximidade no texto — e a regra de segurança é a que está mais longe do fluxo.
 
 ## Funções
 
@@ -403,17 +445,20 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 
 ## 2. Diretrizes de Atendimento
 
+### ⚠️ Regras Críticas
 ### 📌 Regra Geral de Dados
 ### 🚦 Classificação da Demanda
 ### 🅰️ Trilha A — [Ação]
 ### 🅱️ Trilha B — [Informação]
 ### 🅲 Trilha C — Repasse Simples
+### 🧯 Bordas
 ### 🔢 Regra de Tentativas e Transbordo
 
 ---
 
 ## 3. Regras de Conduta
 
+### 📐 Formato da Resposta
 ### ✍️ Linguagem e Formato
 ### 🤝 Tom e Acolhimento
 ### 🎯 Limites de Escopo
@@ -430,7 +475,12 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 
 **O que vai em cada bloco obrigatório:**
 
-- **Regra Geral de Dados** — a declaração única de R20. Primeira coisa das diretrizes.
+- **Regras Críticas** — de 3 a 5 travas, no topo do campo, antes de qualquer fluxo. São as regras cuja
+  violação é binária e cara: o que o agente jamais confirma, o que jamais deduz, e o template literal de
+  execução (R9). Nada de tom, nada de formato, nada que dependa de julgamento.
+  *Motivo:* o campo de Diretrizes é o mais longo e o mais consultado. Trava enterrada no meio dele compete
+  com trinta linhas de fluxo; trava no topo é a primeira coisa que o modelo lê ao entrar no campo.
+- **Regra Geral de Dados** — a declaração única de R20. Vem logo depois das travas.
 - **Classificação da Demanda** — como o agente decide a trilha, o ENUM de motivos, e o fallback de R8.
   Costuma ser uma tabela `Demanda | Motivo | Trilha | Fila`.
 - **Trilha A** — a coleta completa, passo a passo, com o que perguntar e em que ordem, fechando com a fila e
@@ -438,9 +488,16 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 - **Trilha B** — quais funções respondem o quê, a pergunta de fechamento ("posso ajudar em mais alguma
   coisa?") e o encerramento com resolução positiva. **Ainda executa o transbordo** (R9).
 - **Trilha C** — coleta mínima, fila e transbordo. Uma linha explícita proibindo a coleta completa aqui.
+- **Bordas** — tabela `situação | ação`, com **uma linha por borda**: retorno vazio de função, falha técnica
+  (R10a), dado que o usuário não dá (R10b não; ver Tentativas), e conflito entre regras (R10b). Tabela, não
+  prosa: a borda tem que ser encontrável por varredura visual, não por leitura.
 - **Regra de Tentativas e Transbordo** — o limite de R10 e o que fica `"Não coletado"`.
-- **Linguagem e Formato** — tamanho de mensagem, listas numeradas com teto, emojis, e a regra do asterisco
-  único (R24).
+- **Formato da Resposta** — o contrato de saída, em 4 a 6 linhas: quantas perguntas por mensagem, teto de
+  itens em lista, se numera, se usa emoji, e qual mensagem é template literal.
+  *Motivo:* é o passo que mais falta nos agentes existentes. Sem contrato, o modelo escolhe o formato a cada
+  turno, e modelo pequeno escolhe mal com frequência.
+- **Linguagem e Formato** — tom da escrita e a regra do asterisco único (R24). Não repetir aqui o que já
+  está no contrato de saída.
 - **Sem Aconselhamento [Domínio]** — obrigatório em domínio regulado (R22).
 
 **Blocos condicionais, conforme a ficha:**
@@ -614,8 +671,13 @@ regra correspondente vai na §2 do manual daquela função — o JSON sozinho n�
 do cliente. Nos textos, cite a função sempre pelo **nome completo** — referência curta sobrevive a
 renomeação apontando para a função errada, e não dá erro visível.
 
-Um cliente típico tem de 2 a 4 funções `get_*`. Mais que isso costuma ser fragmentação de um mesmo assunto,
-o que viola R19.
+Um cliente típico tem de **3 a 5** funções `get_*`, mais o transbordo. Acima disso, verifique se não é
+fragmentação de um mesmo assunto (R19) antes de aceitar — mas não force a fusão: assunto genuinamente
+distinto merece função própria.
+
+*Por que o número importa:* cada função paga a sua descrição no sempre-ativo, em todo turno. O arquivo de
+dados dela, não. Fundir duas funções sempre chamadas no mesmo trecho do fluxo economiza uma descrição por
+turno; partir um arquivo grande em duas funções **piora** o custo.
 
 ---
 
@@ -654,10 +716,19 @@ Rodar **todas** antes de entregar.
 12. Nenhum nome próprio de outro cliente em lugar nenhum
 13. Toda função citada no prompt tem manual, e todo manual é citado
 14. Toda trilha termina acionando a função de transbordo (R9)
+15. O bloco Regras Críticas existe, é a primeira coisa das Diretrizes, e tem de 3 a 5 itens
+16. A formulação literal de execução (R9) aparece verbatim no prompt
+17. O bloco Bordas cobre as quatro: retorno vazio, falha técnica, dado não obtido, conflito entre regras
+18. Existe bloco de Formato da Resposta em Regras de Conduta
+19. Toda sentinela usada no prompt consta do `enum` do parâmetro correspondente, ou o parâmetro não tem
+    `enum`. Sentinela fora do enum faz a chamada ser descartada em silêncio
 ```
 
 Meça o **bloco sempre-ativo** — as 4 seções do prompt mais a descrição de cada função. É o que a plataforma
 reenvia a cada turno. Reporte o número medido, não estimado.
+
+Os itens 15 a 19 existem porque o agente roda em modelo pequeno: são as quatro lacunas que fazem um `nano`
+improvisar. Nenhum deles reduz token — três aumentam. É deliberado.
 
 ---
 
@@ -684,6 +755,7 @@ na plataforma, o que está pronto como documento interno, e o que não sobe até
 
 ## Changelog
 
+- **1.1.0** — Adequação ao `gpt-5.4-nano`. Modelo alvo declarado, com as consequências de escrita que derivam dele. Acrescentados os três blocos que faltavam no prompt gerado — **Regras Críticas** no topo das Diretrizes, **Bordas** e **Formato da Resposta** — e as regras de borda que não existiam: falha técnica com escada própria e precedência entre regras declarada. Motivo: a orientação oficial do nano pede tarefa estreita, saída fechada e nenhuma borda implícita; borda não escrita é comportamento inventado. Acrescentada a formulação literal de execução (R9), que já existia no modelo estático e é o ponto de falha nº 1. Corrigido o número típico de funções, que estava desatualizado frente ao corpus real.
 - **1.0.0** — Versão inicial. Deriva da `/novo-agente`, com três mudanças de fundo: ficha de parâmetros
   obrigatória antes da escrita; regras e formatos inlined, sem dependência externa nem cliente de
   referência; consentimento e comportamento de resolução viram perguntas sobre a plataforma de destino, em

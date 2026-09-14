@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Criar Agente de Autoagendamento — Clinux
@@ -269,3 +269,14 @@ Fechar exibindo, nesta ordem:
 
 **Nunca fechar dizendo "pronto" com pendência de dado de cliente aberta.** Diga o que está pronto para colar,
 o que está pronto como documento interno, e o que não sobe até fechar pendência.
+
+---
+
+## Changelog
+
+- **1.1.0** - Modelo alvo declarado em `invariantes-clinux.md`, com o peso extra que ele tem nesta
+  categoria: sempre-ativo dobrado por funcao, e retorno vazio como canal unico de erro. Convencoes do
+  projeto antes citadas por numero passam a vir enunciadas por extenso - o arquivo viaja no plugin, para
+  workspaces onde o documento de convencoes nao existe, e excecao a regra invisivel convida a reintroduzir
+  o defeito que ela evitava.
+- **1.0.0** - Versao inicial.
