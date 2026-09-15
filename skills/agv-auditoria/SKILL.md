@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Auditar Agente Virtual
@@ -150,6 +150,7 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Manual com o número de seções da categoria | **Base de conhecimento: 3** (`Descrição` · `Diretrizes` · `Exemplos`). **Integrado: 2** (`Objetivo da função` · `Condições de execução`). Seção a mais, tipicamente "Tool Specification"/JSON Schema, desloca a numeração |
 | Prompt com exatamente 4 seções `##` | Quinta seção — a tela da plataforma tem quatro campos, e a quinta não tem onde ser colada |
 | Sem caminho de arquivo no prompt | `config/agente.md`, `§2` ou nome de pasta citados no conteúdo que vira prompt |
+| Markdown estrutura o prompt, nunca XML | Tags XML (`<perfil>`, `<etapa>`, `<regras>`, `<item>`) estruturando `config/agente.md` ou o bloco de diretrizes de um manual. Medido nos agentes existentes: trocar os headers markdown por tags custa **+217 tokens por turno por agente** (+5% do campo), sem ganho documentado — e o que o XML delimitaria, a plataforma já delimita, porque os 4 campos são entradas separadas. A documentação do modelo não prescreve formato; os blocos XML dos exemplos dela são orquestração multi-etapa de modelo frontier, não este caso |
 
 ---
 
@@ -180,6 +181,11 @@ grep -c '\*\*' config/agente.md
 
 # caminho de arquivo citado no prompt — as duas categorias
 grep -nE 'config/|ferramentas/|§[0-9]' config/agente.md
+
+# formato do prompt: markdown, nunca XML — as duas categorias
+# qualquer acerto aqui é violação: o conteúdo que vira prompt se estrutura
+# com headers markdown, não com tags. Cobre o prompt e os manuais.
+grep -nE '</?[a-zA-Z_][a-zA-Z0-9_-]*>' config/agente.md ferramentas/manuais/*.md
 
 # valor ambíguo nos dados — SÓ Base de conhecimento
 [ -d ferramentas/dados ] && grep -n '\[\]\|null' ferramentas/dados/*.json
@@ -243,6 +249,7 @@ conversa — esta skill não escreve no cliente.
 
 ## Changelog
 
+- **2.2.0** — Critério de formato de prompt: markdown estrutura, nunca XML. A regra e a medição (+217 tokens por turno por agente) já existiam nas skills de criação desde a adequação ao gpt-5.4-nano, mas não haviam chegado à auditoria — um agente podia ser criado sob a regra e auditado sem ela. Baseline com 3 repetições sobre um cliente-fixture cujo prompt inteiro era XML: **0 de 3** apontaram o formato, e **3 de 3** acharam o defeito-controle plantado na mesma seção, provando que auditaram e que a lacuna era de critério, não de atenção.
 - **2.1.0** — Passo 0: determinar a categoria do agente antes de aplicar critério. Metade dos critérios só vale para agentes com base de conhecimento, e aplicá-los a um agente integrado produzia ruído de alta gravidade. Corrigido um **falso negativo silencioso**: a checagem de variável ausente do card ancorava o regex em `IA_`, e num agente integrado — onde as variáveis são nomes de parâmetro de endpoint — os dois lados voltavam vazios e a verificação passava sem ter verificado nada. Critério de sentinela alinhado à R21 do modelo estático.
 - **2.0.0** — Autocontida e estruturada. Antes eram 934 palavras de prosa com **dois cabeçalhos** e 15 regras
   citadas por número de um documento externo. Numa medição com esse documento fora de alcance, a skill ainda
