@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Criar Agente de Autoagendamento — Clinux
@@ -274,9 +274,13 @@ o que está pronto como documento interno, e o que não sobe até fechar pendên
 
 ## Changelog
 
-- **1.1.0** - Modelo alvo declarado em `invariantes-clinux.md`, com o peso extra que ele tem nesta
-  categoria: sempre-ativo dobrado por funcao, e retorno vazio como canal unico de erro. Convencoes do
-  projeto antes citadas por numero passam a vir enunciadas por extenso - o arquivo viaja no plugin, para
-  workspaces onde o documento de convencoes nao existe, e excecao a regra invisivel convida a reintroduzir
-  o defeito que ela evitava.
-- **1.0.0** - Versao inicial.
+- **1.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
+  prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Markdown
+  entrega isso mais barato (~+5% do campo para converter em XML, sem ganho), e aqui o custo seria pago
+  em dobro, pelos dois campos por função.
+- **1.1.0** — Modelo alvo declarado em `invariantes-clinux.md`, com o peso extra que ele tem nesta
+  categoria: sempre-ativo dobrado por função, e retorno vazio como canal único de erro. Convenções do
+  projeto antes citadas por número passam a vir enunciadas por extenso — o arquivo viaja no plugin, para
+  workspaces onde o documento de convenções não existe, e exceção a regra invisível convida a
+  reintroduzir o defeito que ela evitava.
+- **1.0.0** — Versão inicial.

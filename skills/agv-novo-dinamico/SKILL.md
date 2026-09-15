@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, AskUserQuestion
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Criar Agente Virtual de Pré-Atendimento
@@ -30,7 +30,7 @@ divergência. Não escolha em silêncio.
 ## O modelo alvo
 
 O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
-plataforma não expõe. Três consequências valem para tudo que vem abaixo:
+plataforma não expõe. Quatro consequências valem para tudo que vem abaixo:
 
 - **Saída fechada sempre que couber.** Enum no schema, template literal, tabela de decisão. Modelo pequeno
   erra menos escolhendo de uma lista do que redigindo livremente.
@@ -38,6 +38,15 @@ plataforma não expõe. Três consequências valem para tudo que vem abaixo:
   comportamento inventado, e é a causa mais frequente de "o agente ignorou a regra".
 - **Prompt um pouco mais longo e mais explícito** que o de um modelo maior. Aqui token e assertividade
   deixam de apontar na mesma direção: feche as bordas primeiro, meça depois, corte por último.
+- **Markdown para estruturar, nada de XML.** Para o nano a doc **não prescreve formato de prompt
+  nenhum** — o que ela exige é *ter* estrutura (`Generic instructions without structure` está na
+  lista do que evitar). Markdown entrega isso pelo menor custo: medido nos agentes existentes, trocar
+  os headers por tags XML custa **+217 tokens por turno por agente**, +5% do campo, sem ganho
+  documentado. E o serviço que o XML prestaria — delimitar onde um bloco começa e termina — a
+  plataforma já presta, porque os 4 campos são entradas separadas. Os blocos XML dos exemplos da
+  documentação são orquestração multi-etapa do modelo frontier: o oposto do que o nano recebeu como
+  orientação. Se um campo só fica legível com scaffolding pesado, o problema não é o formato — é que o
+  campo está largo demais para o nano. Estreitar, não re-sintaxar.
 
 Medição de token: `tiktoken`, encoding `o200k_base`.
 
@@ -768,6 +777,12 @@ na plataforma, o que está pronto como documento interno, e o que não sobe até
 
 ## Changelog
 
+- **1.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
+  prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Medido: trocar
+  os headers por tags XML custaria +217 tokens por turno por agente (+5% do campo), sem ganho
+  documentado, e o que o XML resolveria — delimitar blocos — a plataforma já resolve, porque os 4 campos
+  são entradas separadas. A regra existe para impedir que a próxima revisão "melhore" o prompt para os
+  blocos XML dos exemplos da documentação, que são orquestração multi-etapa do modelo frontier.
 - **1.1.0** — Adequação ao `gpt-5.4-nano`. Modelo alvo declarado, com as consequências de escrita que derivam dele. Acrescentados os três blocos que faltavam no prompt gerado — **Regras Críticas** no topo das Diretrizes, **Bordas** e **Formato da Resposta** — e as regras de borda que não existiam: falha técnica com escada própria e precedência entre regras declarada. Motivo: a orientação oficial do nano pede tarefa estreita, saída fechada e nenhuma borda implícita; borda não escrita é comportamento inventado. Acrescentada a formulação literal de execução (R9), que já existia no modelo estático e é o ponto de falha nº 1. Corrigido o número típico de funções, que estava desatualizado frente ao corpus real.
 - **1.0.0** — Versão inicial. Deriva da `/novo-agente`, com três mudanças de fundo: ficha de parâmetros
   obrigatória antes da escrita; regras e formatos inlined, sem dependência externa nem cliente de

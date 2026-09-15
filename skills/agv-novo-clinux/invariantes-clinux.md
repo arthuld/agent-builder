@@ -22,6 +22,11 @@ plataforma não expõe. Aqui isso pesa mais do que no Pré Agendamento, por dois
 
 Consequência prática: **toda borda escrita, saída fechada sempre que couber, e nenhuma regra em dois lugares.**
 
+**Formato: markdown, nunca XML.** Para o nano a documentação **não prescreve formato de prompt** — o
+que ela exige é *ter* estrutura. Markdown entrega isso mais barato: trocar headers por tags XML custa
+cerca de **+5% do campo**, sem ganho documentado, e aqui esse custo é pago em dobro pelos dois campos
+por função. Os blocos XML dos exemplos da documentação são orquestração multi-etapa do modelo frontier.
+
 **Se o modelo mudar, revise esta seção antes de tudo.**
 
 ---

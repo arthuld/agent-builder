@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Criar Agente Virtual Estático (Fluxo por Menu)
@@ -24,7 +24,7 @@ repositório, nem a configuração de outro cliente. Se houver convenções exte
 ## O modelo alvo
 
 O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
-plataforma não expõe. Três consequências valem para tudo que vem abaixo:
+plataforma não expõe. Quatro consequências valem para tudo que vem abaixo:
 
 - **Saída fechada sempre que couber.** Enum no schema (R21), template literal (R15), tabela de decisão.
   Modelo pequeno erra menos escolhendo de uma lista do que redigindo livremente.
@@ -32,6 +32,15 @@ plataforma não expõe. Três consequências valem para tudo que vem abaixo:
   comportamento inventado.
 - **Prompt um pouco mais longo e mais explícito** que o de um modelo maior. Feche as bordas primeiro, meça
   depois, corte por último.
+- **Markdown para estruturar, nada de XML.** Para o nano a doc **não prescreve formato de prompt
+  nenhum** — o que ela exige é *ter* estrutura (`Generic instructions without structure` está na
+  lista do que evitar). Markdown entrega isso pelo menor custo: medido nos agentes existentes, trocar
+  os headers por tags XML custa **+217 tokens por turno por agente**, +5% do campo, sem ganho
+  documentado. E o serviço que o XML prestaria — delimitar onde um bloco começa e termina — a
+  plataforma já presta, porque os 4 campos são entradas separadas. Os blocos XML dos exemplos da
+  documentação são orquestração multi-etapa do modelo frontier: o oposto do que o nano recebeu como
+  orientação. Se um campo só fica legível com scaffolding pesado, o problema não é o formato — é que o
+  campo está largo demais para o nano. Estreitar, não re-sintaxar.
 
 O fluxo em menu joga a favor aqui: entrada de dígito e trilha em tabela são mais fáceis para um modelo
 pequeno do que classificação semântica aberta. **O que não joga a favor é o estado** — saber em qual menu
@@ -781,6 +790,12 @@ o que está pronto como documento interno, e o que não sobe até a pendência f
 
 ## Changelog
 
+- **2.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
+  prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Medido: trocar
+  os headers por tags XML custaria +217 tokens por turno por agente (+5% do campo), sem ganho
+  documentado, e o que o XML resolveria — delimitar blocos — a plataforma já resolve, porque os 4 campos
+  são entradas separadas. A regra existe para impedir que a próxima revisão "melhore" o prompt para os
+  blocos XML dos exemplos da documentação, que são orquestração multi-etapa do modelo frontier.
 - **2.1.0** — Adequação ao `gpt-5.4-nano`. Modelo alvo declarado, com as consequências de escrita que derivam dele. Acrescentados os três blocos que faltavam no prompt gerado — **Regras Críticas** no topo das Diretrizes, **Bordas** e **Formato da Resposta** — e as regras de borda que não existiam: falha técnica com escada própria e precedência entre regras declarada. Motivo: a orientação oficial do nano pede tarefa estreita, saída fechada e nenhuma borda implícita; borda não escrita é comportamento inventado. **R21 reescrita**: a sentinela passa a ser declarada no `enum` do parâmetro, em vez de o schema ser afrouxado para acomodá-la. Com a plataforma sem `allowed_tools`, `reasoning_effort` nem modo strict, o enum é a única restrição estrutural disponível — desarmá-lo era abrir mão do último controle que não depende de o modelo obedecer.
 - **2.0.0** — Reescrita autocontida. Antes, 14 regras eram citadas por número de um documento externo; numa
   medição com esse documento fora de alcance, **6 delas viraram buraco** — a taxonomia de trilhas e os
