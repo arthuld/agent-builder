@@ -1,7 +1,7 @@
 {
   "name": "agent-builder",
-  "description": "Skills para criar, auditar e documentar agentes virtuais de atendimento por WhatsApp baseados em OpenAI Function Calling",
-  "version": "1.5.0",
+  "description": "Monta a configuração completa de um agente virtual de atendimento por WhatsApp (OpenAI Function Calling) pronta para colar na plataforma, e audita a configuração existente em busca dos defeitos que não aparecem em teste: regra obrigatória em arquivo que o modelo nunca recebe, dado deduzido em vez de lido, transbordo para fila inexistente. Sete skills autocontidas, cada regra com o motivo ao lado.",
+  "version": "1.5.1",
   "author": {
     "name": "Arthur Drumond",
     "email": "arthur.drumond@futurotec.com.br"

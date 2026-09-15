@@ -1,7 +1,7 @@
 # agent-builder
 
 <p>
-  <img alt="plugin" src="https://img.shields.io/badge/plugin-v1.5.0-1f6feb">
+  <img alt="plugin" src="https://img.shields.io/badge/plugin-v1.5.1-1f6feb">
   <img alt="skills" src="https://img.shields.io/badge/skills-7%20ativas-2da44e">
   <img alt="custo" src="https://img.shields.io/badge/sempre--ativo-~691%20tok-8250df">
   <img alt="padrão" src="https://img.shields.io/badge/padr%C3%A3o-Agent%20Skills-555555">
@@ -84,17 +84,27 @@ skills fora de circulação colocada ali seria carregada como skill ativa. Como 
 
 ## As sete skills
 
-| Skill | O que faz | Alcance |
+| Skill | O que você recebe no fim | Alcance |
 |---|---|---|
-| `/agv-novo-dinamico` | Cria agente de **interação livre** — o usuário descreve a demanda, o agente classifica e conduz | um cliente |
-| `/agv-novo-estatico` | Cria agente **estático** — árvore de menus numerados, ainda respondendo pergunta fora do menu | um cliente |
-| `/agv-novo-clinux` | Cria agente de **autoagendamento com integração** ao clinux-genesis | um cliente |
-| `/agv-auditoria` | Audita em cinco dimensões — fluxo, lógica, segurança, conduta, eficiência. **Propõe, não aplica** | um cliente |
-| `/agv-relatorio-homolog` | Relatório **resumido** de entrega para teste: atalho de homologação, menu, variáveis e as pendências de plataforma que bloqueiam a validação | um cliente |
-| `/agv-relatorio-prod` | Relatório **completo** de arquitetura da versão final: fluxos, filas, funções, decisões deliberadas e limitações conhecidas | um cliente |
-| `/agv-indice` | Mapa curto dos clientes, para achar em qual cliente e qual arquivo está a resposta | atravessa clientes |
+| `/agv-novo-dinamico` | A configuração de um agente de **interação livre**: o usuário escreve o que quer, o agente classifica a demanda e conduz. Pasta completa, pronta para colar nos campos da plataforma | um cliente |
+| `/agv-novo-estatico` | A configuração de um agente **de menus numerados** — que ainda responde pergunta feita fora do menu, em vez de repetir as opções | um cliente |
+| `/agv-novo-clinux` | A configuração de um agente de **autoagendamento integrado** ao clinux-genesis: as funções são endpoints reais e o caminho feliz termina em gravação, não em transbordo | um cliente |
+| `/agv-auditoria` | Um **plano de correção aprovável**, item por item, com arquivo, linha e o efeito em produção de cada defeito. Cinco dimensões: fluxo, lógica, segurança, conduta, eficiência. **Propõe e não aplica** | um cliente |
+| `/agv-relatorio-homolog` | O **documento curto de entrega para teste**: como acionar, o menu, as variáveis, e a lista de pendências de plataforma que impedem a validação de fechar | um cliente |
+| `/agv-relatorio-prod` | A **documentação de arquitetura da versão final**: fluxos, filas, variáveis, funções, lógica de transbordo, decisões deliberadas e limitações conhecidas | um cliente |
+| `/agv-indice` | Um **mapa curto de todos os clientes**, para achar em qual deles e em qual arquivo está a resposta | atravessa clientes |
 
 Futura: `/agv-novo-animati` — integração animati-netpacs.
+
+### Qual usar
+
+▸ **Vou criar de zero.** O usuário final vai digitar livremente o que precisa? `dinamico`. Vai escolher
+opções numeradas? `estatico`. O agendamento grava direto no sistema da clínica? `clinux`.
+▸ **O agente já existe e algo está errado.** `auditoria` — ela diagnostica e devolve o plano; a correção
+você pede em conversa depois de aprovar.
+▸ **O agente já existe e está certo.** `relatorio-homolog` para mandar para teste,
+`relatorio-prod` para registrar o que foi entregue.
+▸ **Não sei nem em qual cliente isso está.** `indice`.
 
 ### Custo
 
@@ -232,16 +242,6 @@ ramificações. Em diretório vazio (dinâmico ×2, estático, clinux) as quatro
 como bloqueante e escreveram **zero arquivos** — uma delas recusou explicitamente a convenção de pastas
 que estava no contexto ambiente, por a skill se declarar autocontida. Com um cliente já montado ao lado, a
 execução criou a pasta na mesma altura sem perguntar, e não abriu a configuração do vizinho.
-
-### Arquivadas
-
-Ficam em `skills/arquivadas/`, com o motivo no topo de cada arquivo — não somem, servem de comparação.
-
-| Skill | Por quê |
-|---|---|
-| `novo-agente` | Substituída pela `agv-novo-dinamico`; mantida como base de comparação |
-| `otimizar-grafo` | O grafo perde para leitura direta na recuperação de dado |
-| `migrar-estrutura` | Não há mais estrutura legada a migrar |
 
 ### O que ainda falta
 

@@ -5,14 +5,14 @@
     "email": "arthur.drumond@futurotec.com.br"
   },
   "metadata": {
-    "description": "Skills para criar, auditar e documentar agentes virtuais de atendimento por WhatsApp baseados em OpenAI Function Calling.",
+    "description": "Skills para quem configura agentes virtuais de atendimento por WhatsApp: criar do zero, auditar o que já está no ar e documentar o que foi entregue.",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "agent-builder",
       "source": "./",
-      "description": "Cria, audita e documenta agentes virtuais de WhatsApp com OpenAI Function Calling. Skills autocontidas, validadas por RED/GREEN."
+      "description": "Cria, audita e documenta agentes virtuais de atendimento por WhatsApp com OpenAI Function Calling. Entrega a configuração pronta para a plataforma e aponta os defeitos que só aparecem em produção. Sete skills autocontidas, cada uma validada contra um braço de controle antes de entrar."
     }
   ]
 }
