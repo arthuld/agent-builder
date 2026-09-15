@@ -151,9 +151,9 @@ Cada regra dentro de uma skill vem com o motivo. Regra sem motivo é regra que a
 
 | Skill | Versão | Validação |
 |---|---|---|
-| `agv-novo-dinamico` | 1.1.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
-| `agv-novo-estatico` | 2.1.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
-| `agv-novo-clinux` | 1.1.0 | GREEN 3/3 |
+| `agv-novo-dinamico` | 1.2.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
+| `agv-novo-estatico` | 2.2.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
+| `agv-novo-clinux` | 1.2.0 | GREEN 3/3 |
 | `agv-auditoria` | 2.1.0 | GREEN 2/2 · casos sem critério de julgamento: 5 → 0 e 1 |
 | `agv-indice` | 1.0.0 | 4/4 na tabela de decisão |
 | `agv-relatorio-homolog` | 2.0.0 | GREEN 1/1 |
