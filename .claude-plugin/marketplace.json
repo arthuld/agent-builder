@@ -12,7 +12,7 @@
     {
       "name": "agent-builder",
       "source": "./",
-      "description": "Cria, audita e documenta agentes virtuais de atendimento por WhatsApp com OpenAI Function Calling. Entrega a configuração pronta para a plataforma e aponta os defeitos que só aparecem em produção. Sete skills autocontidas, cada uma validada contra um braço de controle antes de entrar."
+      "description": "Cria, audita e documenta agentes virtuais de atendimento por WhatsApp com OpenAI Function Calling. Entrega a configuração pronta para a plataforma e aponta os defeitos que só aparecem em produção. Oito skills autocontidas, cada uma validada contra um braço de controle antes de entrar."
     }
   ]
 }

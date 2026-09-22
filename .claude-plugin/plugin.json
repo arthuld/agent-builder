@@ -1,6 +1,6 @@
 {
   "name": "agent-builder",
-  "description": "Monta a configuração completa de um agente virtual de atendimento por WhatsApp (OpenAI Function Calling) pronta para colar na plataforma, e audita a configuração existente em busca dos defeitos que não aparecem em teste: regra obrigatória em arquivo que o modelo nunca recebe, dado deduzido em vez de lido, transbordo para fila inexistente. Sete skills autocontidas, cada regra com o motivo ao lado.",
+  "description": "Monta a configuração completa de um agente virtual de atendimento por WhatsApp (OpenAI Function Calling) pronta para colar na plataforma, e audita a configuração existente em busca dos defeitos que não aparecem em teste: regra obrigatória em arquivo que o modelo nunca recebe, dado deduzido em vez de lido, transbordo para fila inexistente. Oito skills autocontidas, cada regra com o motivo ao lado.",
   "version": "2.1.0",
   "author": {
     "name": "Arthur Drumond",
