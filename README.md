@@ -15,31 +15,30 @@ OpenAI Function Calling.
 
 ## Por que isto existe
 
-Configurar um agente de atendimento é, na prática, escrever um contrato: o que ele pode afirmar, o que
-precisa perguntar antes de agir, e para quem passa a bola quando não sabe. O trabalho não é difícil — é
-fácil de fazer *quase* certo, e o quase não aparece em teste.
+Configurar um agente de atendimento é escrever um contrato: o que ele pode afirmar, o que precisa
+perguntar antes de agir, e para quem passa a bola quando não sabe. O trabalho não é difícil. É fácil de
+fazer *quase* certo, e o quase não aparece em teste.
 
-Os defeitos que aparecem em produção têm todos a mesma cara: uma regra obrigatória que ficou num arquivo
-que o modelo nunca recebe; um convênio que o agente deduziu de um colega da mesma especialidade; uma
-pergunta que ele repete depois de o usuário já ter respondido; um transbordo apontando para uma fila que
-não existe no enum, e por isso descartado em silêncio. Nada disso é erro de digitação. É erro de
-arquitetura de prompt, e só se enxerga comparando arquivos entre si.
+Os defeitos que chegam em produção se repetem: regra obrigatória num arquivo que o modelo nunca recebe,
+convênio deduzido de outro parecido, pergunta repetida depois de já respondida, transbordo apontando para
+uma fila fora do enum e descartado em silêncio. Nada disso é erro de digitação. É erro de arquitetura de
+prompt, e só aparece comparando arquivos entre si.
 
-Este plugin é esse acúmulo virado processo: **cada regra vem com o motivo ao lado**, porque regra sem
-motivo é regra que a próxima revisão "simplifica", reintroduzindo o defeito que ela existia para evitar.
+Este plugin transforma esse acúmulo em processo. **Cada regra vem com o motivo ao lado**, porque regra sem
+motivo é regra que a próxima revisão "simplifica", trazendo de volta o defeito que ela evitava.
 
-▸ **Para quem opera** configuração de agentes de pré-atendimento e precisa que a próxima pessoa
-consiga revisar o que foi feito.
-▸ **Autocontidas:** cada skill carrega por dentro as regras, os formatos de arquivo e os critérios de
-verificação. Não dependem de documento de convenções externo nem de estrutura de pastas fixa — a pasta do
-cliente é descoberta pelo conteúdo e, quando não existe nenhuma, a skill pergunta onde criar.
+▸ **Para quem opera** configuração de agentes de pré-atendimento e precisa que a próxima pessoa consiga
+revisar o que foi feito.
+▸ **Autocontidas.** Cada skill traz por dentro as regras, os formatos e os critérios de verificação. Não
+dependem de documento externo nem de pasta fixa: a pasta do cliente é descoberta pelo conteúdo, e quando
+não existe nenhuma a skill pergunta onde criar.
 
 ---
 
 ## Instalação
 
 As skills seguem o padrão aberto [Agent Skills](https://agentskills.io), então rodam nos três runtimes.
-Instaladas, valem em **qualquer projeto** — não é preciso clonar o repositório nem montar pasta.
+Instaladas, valem em **qualquer projeto**: não é preciso clonar o repositório nem montar pasta.
 
 ### Claude Code
 
@@ -64,7 +63,7 @@ tem ainda `agy plugin import gemini`, que traz as extensões já instaladas lá.
 
 ### opencode
 
-Não tem comando de instalação — descobre por diretório. Clone e copie as pastas `agv-*` para
+Não tem comando de instalação: descobre por diretório. Clone e copie as pastas `agv-*` para
 `~/.agents/skills/`, caminho interoperável lido tanto pelo opencode quanto pelo Antigravity
 (`~/.config/opencode/skills/` também serve, mas só o opencode):
 
@@ -74,7 +73,7 @@ git clone https://github.com/arthuld/agent-builder.git; New-Item -ItemType Direc
 
 Copie **apenas** as pastas `agv-*`: o opencode varre subdiretórios em profundidade, então uma pasta de
 skills fora de circulação colocada ali seria carregada como skill ativa. Como é cópia e não instalação,
-**precisa ser refeita a cada atualização** — não há update automático. Num projeto que já tenha
+**precisa ser refeita a cada atualização**, porque não há update automático. Num projeto que já tenha
 `.agents/skills/`, o opencode lê dali direto, sem instalação nenhuma.
 
 > **Repositório privado.** A instalação exige que o git da máquina tenha acesso. Colaborador adicionado no
@@ -87,20 +86,20 @@ skills fora de circulação colocada ali seria carregada como skill ativa. Como 
 | Skill | O que você recebe no fim | Alcance |
 |---|---|---|
 | `/agv-novo-dinamico` | A configuração de um agente de **interação livre**: o usuário escreve o que quer, o agente classifica a demanda e conduz. Pasta completa, pronta para colar nos campos da plataforma | um cliente |
-| `/agv-novo-estatico` | A configuração de um agente **de menus numerados** — que ainda responde pergunta feita fora do menu, em vez de repetir as opções | um cliente |
+| `/agv-novo-estatico` | A configuração de um agente **de menus numerados**, que ainda responde pergunta feita fora do menu em vez de repetir as opções | um cliente |
 | `/agv-novo-clinux` | A configuração de um agente de **autoagendamento integrado** ao clinux-genesis: as funções são endpoints reais e o caminho feliz termina em gravação, não em transbordo | um cliente |
 | `/agv-auditoria` | Um **plano de correção aprovável**, item por item, com arquivo, linha e o efeito em produção de cada defeito. Cinco dimensões: fluxo, lógica, segurança, conduta, eficiência. **Propõe e não aplica** | um cliente |
 | `/agv-relatorio-homolog` | O **documento curto de entrega para teste**: como acionar, o menu, as variáveis, e a lista de pendências de plataforma que impedem a validação de fechar | um cliente |
 | `/agv-relatorio-prod` | A **documentação de arquitetura da versão final**: fluxos, filas, variáveis, funções, lógica de transbordo, decisões deliberadas e limitações conhecidas | um cliente |
 | `/agv-indice` | Um **mapa curto de todos os clientes**, para achar em qual deles e em qual arquivo está a resposta | atravessa clientes |
 
-Futura: `/agv-novo-animati` — integração animati-netpacs.
+Futura: `/agv-novo-animati`, integração animati-netpacs.
 
 ### Qual usar
 
 ▸ **Vou criar de zero.** O usuário final vai digitar livremente o que precisa? `dinamico`. Vai escolher
 opções numeradas? `estatico`. O agendamento grava direto no sistema da clínica? `clinux`.
-▸ **O agente já existe e algo está errado.** `auditoria` — ela diagnostica e devolve o plano; a correção
+▸ **O agente já existe e algo está errado.** `auditoria`. Ela diagnostica e devolve o plano; a correção
 você pede em conversa depois de aprovar.
 ▸ **O agente já existe e está certo.** `relatorio-homolog` para mandar para teste,
 `relatorio-prod` para registrar o que foi entregue.
@@ -112,7 +111,7 @@ Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em 
 
 | | Sempre-ativo | Ao disparar |
 |---|---|---|
-| Conjunto das 7 | **~691 tok** por sessão | — |
+| Conjunto das 7 | **~691 tok** por sessão | n/a |
 | `agv-novo-estatico` | ~110 | ~17,8k |
 | `agv-novo-dinamico` | ~90 | ~17,5k |
 | `agv-auditoria` | ~90 | ~7,3k |
@@ -128,7 +127,7 @@ Medido com `claude plugin details agent-builder`. São estimativas do runtime, n
 ## Os dois tipos de agente
 
 Metade dos critérios de auditoria vale para um tipo só, e aplicar os critérios errados produz ruído de
-alta gravidade. As skills detectam o tipo antes de julgar qualquer coisa — pelos sinais abaixo, não pelo
+alta gravidade. As skills detectam o tipo antes de julgar qualquer coisa: pelos sinais abaixo, não pelo
 nome da pasta.
 
 | Sinal | Base de conhecimento | Integrado |
@@ -137,7 +136,7 @@ nome da pasta.
 | Nome de variável | `__IA_CAMPO__` | nome do parâmetro do endpoint |
 | Fim do caminho feliz | transbordo para humano | gravação no sistema |
 | Sentinela de ausência | três estados, declarados no `enum` | proibida em campo obrigatório: retém a chamada e pergunta |
-| Retorno vazio | pode indicar ausência na base | **nunca** autoriza negar — só a lista de exclusão explícita |
+| Retorno vazio | pode indicar ausência na base | **nunca** autoriza negar; só a lista de exclusão explícita |
 
 ---
 
@@ -154,7 +153,7 @@ ou marcada `[PERGUNTAR]`, e qualquer `[PERGUNTAR]` bloqueia. São bloqueantes: o
 comercial do cliente, nome e gênero do agente, saudação literal, filas reais e cada regra de negócio.
 
 **O material do cliente chega de duas formas, e as duas funcionam:** arquivos numa pasta `origem/`, ou
-colados direto no comando ao invocar a skill. Nenhuma é obrigatória e nenhuma tem precedência — o que
+colados direto no comando ao invocar a skill. Nenhuma é obrigatória e nenhuma tem precedência: o que
 existir vira fonte primária, e o que vier colado é salvo em `origem/` para ficar registrado.
 
 ### A estrutura que a skill gera
@@ -166,18 +165,18 @@ MeuCliente/
 │   ├── variaveis.md       dicionário das variáveis de contexto
 │   └── clienteinfo.json   card do atendente
 ├── ferramentas/
-│   ├── dados/             get_*.json — bases de conhecimento
+│   ├── dados/             get_*.json, bases de conhecimento
 │   └── manuais/           get_*.md + a função de transbordo
 ├── origem/                material bruto recebido do cliente
 └── relatorios/
 ```
 
 As quatro seções `##` de `config/agente.md` correspondem exatamente aos quatro campos da tela da
-plataforma — Perfil, Diretrizes, Conduta e Segurança. Uma quinta seção não teria onde ser colada.
+plataforma: Perfil, Diretrizes, Conduta e Segurança. Uma quinta seção não teria onde ser colada.
 
 O mesmo vale para os manuais: as duas seções são `Objetivo da Função` e `Condições de Execução`, os dois
 campos que a plataforma abre por função. **As duas são sempre-ativas**, reenviadas em todo turno junto com
-o schema — não existe seção de exemplos, porque não há um terceiro campo para colá-la.
+o schema. Não existe seção de exemplos, porque não há um terceiro campo para colá-la.
 
 Onde essa pasta nasce depende do seu workspace: a skill procura clientes já montados e coloca o novo ao
 lado; não achando nenhum, pergunta.
@@ -192,7 +191,7 @@ lado; não achando nenhum, pergunta.
 
 A auditoria **propõe e não aplica**. A separação entre diagnosticar e escrever é o que impede uma
 auditoria de "consertar" configuração correta para satisfazer um falso positivo. Ela também separa
-**achado de observação**: sem critério para julgar, o item é reportado como observação — auditoria que
+**achado de observação**: sem critério para julgar, o item é reportado como observação. Auditoria que
 classifica dúvida como defeito faz o cliente corrigir o que estava certo.
 
 ### Achar coisas entre clientes
@@ -202,7 +201,7 @@ classifica dúvida como defeito faz o cliente corrigir o que estava certo.
 ```
 
 Para pergunta que **atravessa** clientes. Para pergunta sobre um cliente só, abrir o `config/agente.md`
-dele é mais barato — e a skill diz isso em vez de fazer trabalho desnecessário.
+dele é mais barato, e a skill diz isso em vez de fazer trabalho desnecessário.
 
 ---
 
@@ -214,13 +213,13 @@ saber se a skill agrega ou se o modelo acertaria sozinho.
 
 O método pega o que revisão de código não pega:
 
-▸ Uma skill de criação **perdeu para o próprio controle** — 8/8 sem skill contra 7/8, 8/8 e 7/8 com ela.
+▸ Uma skill de criação **perdeu para o próprio controle**: 8/8 sem skill contra 7/8, 8/8 e 7/8 com ela.
 Foi arquivada e reescrita.
 ▸ Uma auditoria sem skill escreveu o encerramento como mensagem (*"estou te encaminhando"*) em vez de
 execução da função, e inventou uma exceção à entrega única.
 ▸ Duas correções vieram de execuções de teste que **rejeitaram a regra recém-escrita e estavam certas**.
 ▸ O critério de formato de prompt entrou com baseline de **0/3** apontando o defeito e **3/3** achando o
-defeito-controle plantado no mesmo arquivo — prova de que a lacuna era de critério, não de atenção.
+defeito-controle plantado no mesmo arquivo, prova de que a lacuna era de critério, não de atenção.
 
 O controle é o que torna um GREEN interpretável. Um braço de tratamento que acerta sozinho não provou
 nada; um braço de controle que erra o alvo mas acerta um defeito vizinho provou exatamente onde estava o
@@ -242,7 +241,7 @@ buraco.
 
 A regra de destino de pasta, comum às três skills de criação, tem GREEN próprio: **5/5**, cobrindo as duas
 ramificações. Em diretório vazio (dinâmico ×2, estático, clinux) as quatro execuções marcaram o destino
-como bloqueante e escreveram **zero arquivos** — uma delas recusou explicitamente a convenção de pastas
+como bloqueante e escreveram **zero arquivos**. Uma delas recusou explicitamente a convenção de pastas
 que estava no contexto ambiente, por a skill se declarar autocontida. Com um cliente já montado ao lado, a
 execução criou a pasta na mesma altura sem perguntar, e não abriu a configuração do vizinho.
 
@@ -250,12 +249,12 @@ execução criou a pasta na mesma altura sem perguntar, e não abriu a configura
 
 | Item | Situação |
 |---|---|
-| **Suíte de evals** | `claude plugin eval` existe e o repositório não tem `evals/`. Hoje toda validação é subagente ad-hoc, refeita à mão a cada mudança. Uma suíte transformaria os GREEN já obtidos em regressão automática — o maior ganho de manutenção disponível |
+| **Suíte de evals** | `claude plugin eval` existe e o repositório não tem `evals/`. Hoje toda validação é subagente ad-hoc, refeita à mão a cada mudança. Uma suíte transformaria os GREEN já obtidos em regressão automática, o maior ganho de manutenção disponível |
 | **`/agv-fix`** | Não existe. A auditoria propõe e a correção é pedida em conversa. Fecharia o ciclo auditar → corrigir com validação própria |
 | **`/agv-novo-animati`** | Não existe. Integração animati-netpacs |
-| **Variância dos GREEN de relatório** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. As mudanças são estruturais — aparecem ou não —, mas a variância nunca foi medida |
+| **Variância dos GREEN de relatório** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. As mudanças são estruturais, aparecem ou não, mas a variância nunca foi medida |
 | **LICENSE** | O manifesto declara `UNLICENSED` e não há arquivo. Irrelevante enquanto o repositório for privado |
-| **Instalação no Antigravity ponta a ponta** | O `agy` está instalado e os subcomandos foram conferidos no binário. O que não foi feito é instalar **este** repositório por ali e abrir uma sessão para confirmar que as sete skills aparecem — como foi feito no opencode (`opencode debug skill`: 7 de 7) |
+| **Instalação no Antigravity ponta a ponta** | O `agy` está instalado e os subcomandos foram conferidos no binário. O que não foi feito é instalar **este** repositório por ali e abrir uma sessão para confirmar que as sete skills aparecem, como foi feito no opencode (`opencode debug skill`: 7 de 7) |
 
 ---
 
@@ -264,7 +263,7 @@ execução criou a pasta na mesma altura sem perguntar, e não abriu a configura
 Editar skill é editar `skills/<nome>/SKILL.md` **neste repositório**. Uma cópia local em
 `.claude/skills/` não tem efeito nenhum no que roda.
 
-Commit e push sozinhos **não** bastam — o marketplace é um clone git em cache, e sem atualizá-lo o
+Commit e push sozinhos **não** bastam: o marketplace é um clone git em cache, e sem atualizá-lo o
 install continua servindo o commit antigo:
 
 ```bash
@@ -279,7 +278,7 @@ claude plugin marketplace update agent-builder
 claude plugin update agent-builder
 ```
 
-Depois, **reiniciar** — a CLI avisa *"Restart to apply changes"*, e a sessão em curso segue com a versão
+Depois, **reiniciar**. A CLI avisa *"Restart to apply changes"*, e a sessão em curso segue com a versão
 velha até lá.
 
 **Sintoma de que faltou republicar:** a skill que roda divergiu da fonte. Para conferir:
@@ -292,14 +291,14 @@ O `--strip-trailing-cr` não é opcional: sem ele **todo** arquivo aparece como 
 CRLF, e o diagnóstico real se perde no ruído.
 
 > `.agents/skills/` é espelho local para os runtimes que descobrem por diretório, e é gitignored. `git add`
-> nele falha — e dentro de um `&&` isso aborta o commit inteiro.
+> nele falha, e dentro de um `&&` isso aborta o commit inteiro.
 
 ---
 
 ## Configuração de cliente nunca entra aqui
 
 Este repositório é o plugin: manifesto, skills e este README. Os clientes e suas configurações ficam no
-workspace de quem opera, e o `.gitignore` protege contra o engano — mas ele é a última linha, não a
+workspace de quem opera, e o `.gitignore` protege contra o engano, mas ele é a última linha, não a
 primeira. Caminho novo que ninguém previu não está coberto. Antes de qualquer commit:
 
 ```bash
