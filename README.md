@@ -101,7 +101,7 @@ Futura: `/agv-novo-animati`, integração animati-netpacs.
 ▸ **Vou criar de zero.** O usuário final vai digitar livremente o que precisa? `dinamico`. Vai escolher
 opções numeradas? `estatico`. O agendamento grava direto no sistema da clínica? `clinux`.
 ▸ **O agente já existe e algo está errado.** `auditoria`. Ela diagnostica e devolve o plano; a correção
-você pede em conversa depois de aprovar.
+é a `fix`, depois de você aprovar.
 ▸ **A auditoria já rodou e você aprovou o plano.** `fix`. Aplica item por item o que você marcou, e
 reporta separado o que viu e não corrigiu.
 ▸ **O agente já existe e está certo.** `relatorio-homolog` para mandar para teste,
@@ -242,13 +242,14 @@ buraco.
 
 | Skill | Versão | Validação |
 |---|---|---|
-| `agv-auditoria` | 2.2.0 | GREEN 3/3 no formato de prompt, baseline 0/3 · GREEN 2/2 anterior · casos sem critério de julgamento: 5 → 0 e 1 |
-| `agv-novo-estatico` | 2.2.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
-| `agv-novo-dinamico` | 1.2.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
-| `agv-novo-clinux` | 1.2.0 | GREEN 3/3 |
-| `agv-relatorio-homolog` | 2.0.0 | GREEN 1/1 |
+| `agv-auditoria` | 3.0.0 | GREEN 3/3 no formato de prompt, baseline 0/3 · GREEN 2/2 anterior · casos sem critério de julgamento: 5 → 0 e 1 |
+| `agv-novo-estatico` | 3.0.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
+| `agv-novo-dinamico` | 2.0.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
+| `agv-novo-clinux` | 1.3.0 | GREEN 3/3 |
+| `agv-relatorio-homolog` | 2.1.0 | GREEN 1/1 |
 | `agv-relatorio-prod` | 2.0.0 | GREEN 1/1 |
 | `agv-indice` | 1.0.0 | 4/4 na tabela de decisão |
+| `agv-fix` | 1.0.0 | sem GREEN — única do conjunto ainda não validada |
 
 A regra de destino de pasta, comum às três skills de criação, tem GREEN próprio: **5/5**, cobrindo as duas
 ramificações. Em diretório vazio (dinâmico ×2, estático, clinux) as quatro execuções marcaram o destino
@@ -261,11 +262,11 @@ execução criou a pasta na mesma altura sem perguntar, e não abriu a configura
 | Item | Situação |
 |---|---|
 | **Suíte de evals** | `claude plugin eval` existe e o repositório não tem `evals/`. Hoje toda validação é subagente ad-hoc, refeita à mão a cada mudança. Uma suíte transformaria os GREEN já obtidos em regressão automática, o maior ganho de manutenção disponível |
-| **`/agv-fix`** | Não existe. A auditoria propõe e a correção é pedida em conversa. Fecharia o ciclo auditar → corrigir com validação própria |
+| **GREEN de `/agv-fix`** | A skill entrou na v2.1.0 sem passar por RED/GREEN com controle. É a única do conjunto sem validação medida |
 | **`/agv-novo-animati`** | Não existe. Integração animati-netpacs |
 | **Variância dos GREEN de relatório** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. As mudanças são estruturais, aparecem ou não, mas a variância nunca foi medida |
 | **LICENSE** | O manifesto declara `UNLICENSED` e não há arquivo. Irrelevante enquanto o repositório for privado |
-| **Instalação no Antigravity ponta a ponta** | O `agy` está instalado e os subcomandos foram conferidos no binário. O que não foi feito é instalar **este** repositório por ali e abrir uma sessão para confirmar que as sete skills aparecem, como foi feito no opencode (`opencode debug skill`: 7 de 7) |
+| **Instalação no Antigravity ponta a ponta** | O `agy` está instalado e os subcomandos foram conferidos no binário. O que não foi feito é instalar **este** repositório por ali e abrir uma sessão para confirmar que as oito skills aparecem, como foi feito no opencode (`opencode debug skill`: 7 de 7) |
 
 ---
 
