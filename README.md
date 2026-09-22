@@ -2,7 +2,7 @@
 
 <p>
   <img alt="plugin" src="https://img.shields.io/badge/plugin-v2.0.0-1f6feb">
-  <img alt="skills" src="https://img.shields.io/badge/skills-7%20ativas-2da44e">
+  <img alt="skills" src="https://img.shields.io/badge/skills-8%20ativas-2da44e">
   <img alt="custo" src="https://img.shields.io/badge/sempre--ativo-~441%20tok-8250df">
   <img alt="padrão" src="https://img.shields.io/badge/padr%C3%A3o-Agent%20Skills-555555">
   <img alt="validação" src="https://img.shields.io/badge/valida%C3%A7%C3%A3o-RED%20%2F%20GREEN-bf8700">
@@ -81,7 +81,7 @@ skills fora de circulação colocada ali seria carregada como skill ativa. Como 
 
 ---
 
-## As sete skills
+## As oito skills
 
 | Skill | O que você recebe no fim | Alcance |
 |---|---|---|
@@ -89,6 +89,7 @@ skills fora de circulação colocada ali seria carregada como skill ativa. Como 
 | `/agv-novo-estatico` | A configuração de um agente **de menus numerados**, que ainda responde pergunta feita fora do menu em vez de repetir as opções | um cliente |
 | `/agv-novo-clinux` | A configuração de um agente de **autoagendamento integrado** ao clinux-genesis: as funções são endpoints reais e o caminho feliz termina em gravação, não em transbordo | um cliente |
 | `/agv-auditoria` | Um **plano de correção aprovável**, item por item, com arquivo, linha e o efeito em produção de cada defeito. Cinco dimensões: fluxo, lógica, segurança, conduta, eficiência. **Propõe e não aplica** | um cliente |
+| `/agv-fix` | A configuração **corrigida**, aplicando só os itens do plano de auditoria que você aprovou. Não reaudita, não acrescenta achado, não aproveita para melhorar o resto | um cliente |
 | `/agv-relatorio-homolog` | O **documento curto de entrega para teste**: como acionar, o menu, as variáveis, e a lista de pendências de plataforma que impedem a validação de fechar | um cliente |
 | `/agv-relatorio-prod` | A **documentação de arquitetura da versão final**: fluxos, filas, variáveis, funções, lógica de transbordo, decisões deliberadas e limitações conhecidas | um cliente |
 | `/agv-indice` | Um **mapa curto de todos os clientes**, para achar em qual deles e em qual arquivo está a resposta | atravessa clientes |
@@ -101,17 +102,20 @@ Futura: `/agv-novo-animati`, integração animati-netpacs.
 opções numeradas? `estatico`. O agendamento grava direto no sistema da clínica? `clinux`.
 ▸ **O agente já existe e algo está errado.** `auditoria`. Ela diagnostica e devolve o plano; a correção
 você pede em conversa depois de aprovar.
+▸ **A auditoria já rodou e você aprovou o plano.** `fix`. Aplica item por item o que você marcou, e
+reporta separado o que viu e não corrigiu.
 ▸ **O agente já existe e está certo.** `relatorio-homolog` para mandar para teste,
 `relatorio-prod` para registrar o que foi entregue.
 ▸ **Não sei nem em qual cliente isso está.** `indice`.
 
 ### Custo
 
-Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em que ela dispara.
+Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em que ela dispara. Números da
+v2.0.0, antes da entrada da `agv-fix`.
 
 | | Sempre-ativo | Ao disparar |
 |---|---|---|
-| Conjunto das 7 | **~441 tok** por sessão | n/a |
+| Conjunto das 8 | **~441 tok** por sessão | n/a |
 | `agv-novo-dinamico` | ~60 | ~13,1k |
 | `agv-novo-estatico` | ~70 | ~12,8k |
 | `agv-auditoria` | ~60 | ~6,2k |
@@ -190,12 +194,14 @@ lado; não achando nenhum, pergunta.
 
 ```
 /agv-auditoria MeuCliente          → plano de correção, aprovável
+/agv-fix MeuCliente                → aplica o plano aprovado, item por item
 /agv-relatorio-homolog MeuCliente  → relatório de entrega para teste
 /agv-relatorio-prod MeuCliente     → documentação final de arquitetura
 ```
 
-A auditoria **propõe e não aplica**. A separação entre diagnosticar e escrever é o que impede uma
-auditoria de "consertar" configuração correta para satisfazer um falso positivo. Ela também separa
+A auditoria **propõe e não aplica**, e a `agv-fix` aplica e não propõe. A separação entre diagnosticar e
+escrever é o que impede uma auditoria de "consertar" configuração correta para satisfazer um falso
+positivo, e é por isso que a `fix` exige um plano aprovado em vez de reauditar por conta própria. Ela também separa
 **achado de observação**: sem critério para julgar, o item é reportado como observação. Auditoria que
 classifica dúvida como defeito faz o cliente corrigir o que estava certo.
 
