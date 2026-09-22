@@ -31,3 +31,6 @@ _preview-*.html
 
 # Skills fora de circulação: mantidas no disco como referência, não publicadas
 skills/arquivadas/
+
+# referencia local de prompting, nao faz parte do plugin
+gpt-5.4-nano-guia.md
