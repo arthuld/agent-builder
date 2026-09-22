@@ -3,7 +3,7 @@
 <p>
   <img alt="plugin" src="https://img.shields.io/badge/plugin-v2.1.0-1f6feb">
   <img alt="skills" src="https://img.shields.io/badge/skills-8%20ativas-2da44e">
-  <img alt="custo" src="https://img.shields.io/badge/sempre--ativo-~441%20tok-8250df">
+  <img alt="custo" src="https://img.shields.io/badge/sempre--ativo-~512%20tok-8250df">
   <img alt="padrão" src="https://img.shields.io/badge/padr%C3%A3o-Agent%20Skills-555555">
   <img alt="validação" src="https://img.shields.io/badge/valida%C3%A7%C3%A3o-RED%20%2F%20GREEN-bf8700">
 </p>
@@ -110,21 +110,21 @@ reporta separado o que viu e não corrigiu.
 
 ### Custo
 
-Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em que ela dispara. Números da
-v2.0.0, antes da entrada da `agv-fix`.
+Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em que ela dispara.
 
 | | Sempre-ativo | Ao disparar |
 |---|---|---|
-| Conjunto das 8 | **~441 tok** por sessão | n/a |
+| Conjunto das 8 | **~512 tok** por sessão | n/a |
 | `agv-novo-dinamico` | ~60 | ~13,1k |
 | `agv-novo-estatico` | ~70 | ~12,8k |
 | `agv-auditoria` | ~60 | ~6,2k |
 | `agv-novo-clinux` | ~70 | ~4,4k |
 | `agv-relatorio-homolog` | ~70 | ~2,5k |
+| `agv-fix` | ~70 | ~2,3k |
 | `agv-relatorio-prod` | ~70 | ~2k |
 | `agv-indice` | ~50 | ~1,9k |
 
-Medido com `claude plugin details agent-builder` na v2.0.0. São estimativas do runtime, não faturamento.
+Medido com `claude plugin details agent-builder` na v2.1.0. São estimativas do runtime, não faturamento.
 
 Não confunda este custo com o do **agente gerado**. Aqui se mede o que as skills custam na sua sessão de
 Claude Code. O agente que elas produzem roda em `gpt-5.4-nano` na plataforma do cliente, e o sempre-ativo
