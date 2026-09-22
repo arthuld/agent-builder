@@ -136,8 +136,8 @@ Sem camada de validação de schema, valor no formato errado **não** volta como
 
 Consequências:
 - **Formato é regra, e é por endpoint — não deduzir.** O formato exato que cada parâmetro exige (datas,
-  sexo) é o que aquele endpoint espera; assumir é o caminho direto para o vazio silencioso acima. Na
-  cliente-de-referencia a data é `DD/MM/AAAA` no chat **e** no envio (sem conversão) — mas isso se confirma contra o
+  sexo) é o que aquele endpoint espera; assumir é o caminho direto para o vazio silencioso acima. Num
+  cliente Clinux medido, a data é `DD/MM/AAAA` no chat **e** no envio (sem conversão) — mas isso se confirma contra o
   registro da plataforma ou uma requisição real, não se herda. Numa revisão, `AAAA-MM-DD` entrou por
   suposição e teria feito toda busca de horário voltar vazia.
 - **Nenhum valor de reserva em campo obrigatório.** Não existem as sentinelas `"Não Informado"` /
@@ -168,7 +168,7 @@ A consulta de disponibilidade agenda **um procedimento por vez**: `PROCEDIMENTOS
 ID, e cada ID de agenda retornado é uma opção de horário para aquele exame. O endpoint **não** combina vários
 exames num mesmo horário.
 
-**Por que:** a disponibilidade combinada é limitação do endpoint Clinux (confirmado na cliente-de-referencia, 08/2026).
+**Por que:** a disponibilidade combinada é limitação do endpoint Clinux (confirmado num cliente em 08/2026).
 A versão antiga desta regra mandava concatenar todos os IDs numa chamada e tratar o retorno como "um conjunto
 que atende todos os exames juntos" — isso não funciona e foi removido.
 

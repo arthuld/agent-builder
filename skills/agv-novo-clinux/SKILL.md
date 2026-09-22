@@ -236,7 +236,8 @@ Rodar **todas** antes de entregar. Estas checagens já pegaram defeito real em r
 # 5. clienteinfo.json é JSON válido e os arrays de rótulo/token têm o mesmo tamanho
 # 6. Nenhuma variável declarada em uso que o prompt e o card não citem
 # 7. Cada "não realiza" no prompt está ancorado na lista de exclusão ou na proibição do retorno vazio
-# 8. Nenhum nome próprio de OUTRO cliente vazou:  grep -ri "cliente-de-referencia\|nome-do-cliente-anterior"
+# 8. Nenhum nome próprio de OUTRO cliente vazou: grepar o nome do cliente de referência e o do
+#    cliente anterior. Nao escrever esses nomes aqui — este arquivo e publico
 ```
 
 Medir o **bloco sempre-ativo** com `tiktoken` (encoding `o200k_base`): os 4 campos de prompt mais o
