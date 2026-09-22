@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, AskUserQuestion
 metadata:
-  version: "1.2.0"
+  version: "2.0.0"
 ---
 
 # Criar Agente Virtual de Pré-Atendimento
@@ -52,6 +52,28 @@ Medição de token: `tiktoken`, encoding `o200k_base`.
 
 **Se o modelo mudar, revise esta seção antes de tudo** — as escolhas de escrita abaixo derivam dela, e um
 modelo maior torna várias delas desnecessárias.
+
+## O contrato do runtime
+
+Metade dos defeitos deste tipo de agente nasce de escrever uma regra num lugar que o modelo nunca lê. Esta
+tabela decide **onde** cada coisa se escreve:
+
+| Artefato | Campo da plataforma | Chega ao modelo |
+| --- | --- | --- |
+| As 4 seções de `agente.md` | Perfil · Diretrizes · Conduta · Segurança | **sempre-ativo** |
+| §1 do manual | **Objetivo da Função** | **sempre-ativo** |
+| §2 do manual | **Condições de Execução** | **sempre-ativo** |
+| Schema da função — nome, parâmetros, `description` de cada um | cadastro da função | **sempre-ativo** |
+| JSON de `ferramentas/dados/` | retorno da função | só no turno da chamada |
+| Card do atendente | outro módulo | **nunca** — é a tela da atendente humana |
+| `origem/`, `relatorios/` | — | **nunca** |
+
+Sempre-ativo é pago em **todos** os turnos, inclusive naqueles em que nenhuma função é chamada. Duas
+consequências que contrariam o instinto:
+
+- **O manual inteiro é sempre-ativo.** Não existe "deixar a regra na §2 para não pagar" — a §2 custa
+  exatamente como a §1. O que a §2 ganha é organização, não desconto.
+- **O arquivo de dados não é.** Arquivo grande é barato; função a mais é cara. A conta está na R26.
 
 ## Ordem de execução
 
@@ -111,7 +133,8 @@ FICHA DE PARÂMETROS — <cliente>
   funcoes.inventario ..............
   variaveis.origem ................
   negocio.regra_1..N ..............
-  default.mascara_cpf ............. ***.***.XXX-XX
+  fluxo.confirma_antes_executar ... Sim
+  fluxo.meta_interacoes ........... 5 a 7 mensagens do agente
   default.teto_lista .............. 5
   default.limite_secao1 ........... 950 caracteres
 ```
@@ -173,7 +196,9 @@ Os dois desenhos existem. Deduzir errado quebra em silêncio: o atendimento simp
 
 | Dado | Default |
 | --- | --- |
-| Máscara de documento exibido no chat | `***.***.XXX-XX` (últimos 5 dígitos visíveis) |
+| Confirmação dos dados antes de executar o transbordo | Sim |
+| Meta de interações até finalizar ou transferir | 5 a 7 mensagens do agente |
+| Modalidade fora de convênio (particular) | Disponível — assumir que sim e confirmar no relatório |
 | Teto de itens por lista numerada | 5, com paginação por "Outras opções" |
 | Limite da descrição de função | 950 caracteres (**teto**, não alvo — o usual fica em 600–850) |
 | Tentativas antes do transbordo por falha | 2 |
@@ -243,6 +268,15 @@ das três:
 *Motivo:* não coletar dado desnecessário para o que só será repassado, e não acionar humano para o que o
 agente resolve sozinho.
 
+**R7a — Modalidade de pagamento é classificação, não coleta opcional.** Quando o domínio tiver convênio,
+plano ou carteirinha, o agente pergunta **primeiro** qual é a modalidade — convênio ou particular — e só
+então segue para os dados dela. Particular é uma **variação da trilha**, com os campos que se aplicam a
+ela; os campos de convênio ficam `"Não se aplica"`. Assuma que o atendimento particular existe e confirme
+no relatório: praticamente todo prestador atende particular.
+*Motivo:* sem essa bifurcação, quem não tem convênio cai no laço de tentativas e termina registrado como
+`"Não Informado"` — que a R6 define como **recusa explícita**. O atendente recebe "recusou informar o
+convênio" sobre alguém que simplesmente não tem um, e vai cobrar um dado que ninguém deveria ter pedido.
+
 **R8 — Fallback de classificação.** Se a variável de entrada que traz a demanda chegar vazia ou com valor
 fora do ENUM esperado, defina o que fazer — nunca deixe essa borda implícita. Padrão: perguntar o mínimo
 (normalmente só o nome) e transferir para a fila geral.
@@ -259,11 +293,21 @@ tags de relatório sem gatilho: o atendimento nunca é entregue, e o número nun
 
 Executar é uma ação; anunciar não realiza. Esta formulação vai **literalmente** no prompt gerado:
 
-> Toda trilha termina obrigatoriamente com a execução da função de transbordo. **Executar a função é uma
-> ação — anunciar a transferência em texto não a realiza.**
+> Toda trilha termina obrigatoriamente com a execução da função de transbordo. *Executar a função é uma
+> ação — anunciar a transferência em texto não a realiza.*
 
 *Motivo:* é o ponto de falha nº 1 em produção. O paciente sai da conversa acreditando que foi transferido, e
 não foi. Template literal porque modelo pequeno reproduz frase fixa melhor do que obedece a descrição.
+
+*A mensagem de transferência não é do agente.* Quem envia o texto de encerramento ou de transferência é a
+**plataforma**, depois da chamada, derivando-o das variáveis preenchidas. Por isso o prompt fica proibido de
+conter despedida, aviso de transferência ou frase de encerramento. O que o agente faz no último turno é o
+que a ficha definir em `fluxo.confirma_antes_executar`: com `Sim` (default), ele lê de volta o que coletou,
+aguarda a confirmação do usuário e **então** executa.
+*Motivo:* medido em produção — um prompt obrigava o literal *"Vou transferir você para a nossa equipe
+agora"* antes de **todo** transbordo, inclusive na trilha de dúvida resolvida, que encerra sem fila. O
+usuário saía informado de que falaria com alguém que nunca viria. E como o texto estava escrito em três
+lugares do config, as três versões já divergiam entre si.
 
 **R10 — Tentativas antes de desistir.** Defina o número de tentativas (padrão 2) após o qual o agente para
 de insistir num dado, aciona o transbordo e marca os campos não perguntados como `"Não coletado"`.
@@ -299,6 +343,16 @@ reperguntou se era agendamento ou dúvida depois de o usuário abrir com *"quero
 ofereceu três unidades para um serviço que só existe em uma — o usuário reclamou, e o agente repetiu a mesma
 lista. O modelo lê o passo que está executando, não o parágrafo de abertura da seção.
 
+**R10d — Mudança de demanda reclassifica, e invalida o que não se aplica.** O usuário pode trocar de
+assunto depois de a trilha ter começado. Escreva no prompt gerado o que sobrevive e o que morre:
+
+> Mudando a demanda, reclassificar antes de continuar. Dado de identificação já informado é reaproveitado
+> **sem perguntar de novo**. Dado ligado à demanda anterior — fila, item de interesse, qualificação — é
+> descartado, e perguntado de novo só se a nova demanda precisar dele.
+
+*Motivo:* sem isso a nova demanda herda a fila e a qualificação da antiga, e o transbordo entrega um caso
+coerente com a conversa errada. É pior do que faltar dado: o atendente não tem como perceber.
+
 ## Funções
 
 **R11 — Descrição da função ≤ 950 caracteres.** É o texto registrado na API. Sem saudação, sem "esta função
@@ -312,6 +366,25 @@ explicitamente.
 *Motivo:* parâmetro inventado retorna dado de outra pessoa ou vazio, e os dois viram resposta errada com
 cara de certa.
 
+**R12a — Só colete dado que tem finalidade no caminho em curso.** Antes de acrescentar um passo de coleta,
+aponte quem consome o dado: um parâmetro de função, ou um campo que o atendente recebe no card. Sem
+consumidor, o passo não existe. Em particular, separe **orientação geral** ("como faço para acessar X",
+"quais são os canais") de **consulta individual** ("qual é o meu X"): a primeira não precisa de
+identificador nenhum.
+*Motivo:* medido em produção — um agente pedia documento para uma função que devolvia só canais e prazos
+genéricos, iguais para todo mundo. O dado não alimentava nada, e a função passava a parecer uma consulta
+autenticada que ela não fazia.
+
+**R12b — Toda sentinela usada no prompt consta do `enum` do parâmetro.** Campo com `enum`, `pattern` ou
+`format` que recebe `"Não coletado"` sem tê-lo na lista faz a plataforma **descartar a chamada em
+silêncio** — o sintoma é "o agente chega na função e não faz nada". A correção é acrescentar a sentinela ao
+`enum`, **nunca** afrouxar o campo para texto livre: em modelo pequeno o enum é a única restrição
+estrutural disponível, e schema afrouxado para acomodar sentinela é defeito.
+*Exceção — ENUM fechado por natureza.* Alguns campos não aceitam sentinela, tipicamente a fila de
+transbordo, cujos valores são as filas reais do cliente. Para esses, declare **qual valor real do ENUM vale
+como fallback** quando o dado não foi coletado, e diga explicitamente que o campo não aceita sentinela.
+Deixar isso implícito produz o pior defeito possível: a transferência é descartada sem erro visível.
+
 **R13 — Responder só o subconjunto perguntado.** Ao processar o retorno de uma função que carrega uma base
 grande, responda **apenas** com o que foi perguntado. Nunca cole a base inteira na conversa.
 *Motivo:* base inteira na tela faz o
@@ -324,13 +397,21 @@ fechado** — tratar como não localizado e perguntar.
 *Motivo:* aproximar dois itens diferentes agenda a pessoa para a coisa errada, e ninguém percebe até ela
 chegar lá.
 
-**R15 — Três seções no manual, exatamente.** Todo manual de função tem `## 1. Descrição da Função` ·
-`## 2. Diretrizes de Prompt` · `## 3. Exemplos Práticos de Diálogos`. Nunca uma quarta, e nunca uma seção de
-especificação técnica (JSON Schema) — isso é artefato de documentação, não de configuração.
+**R15 — Duas seções no manual, com o nome do campo da plataforma.** Todo manual de função tem exatamente
+`## 1. Objetivo da Função` · `## 2. Condições de Execução` — os nomes dos dois campos onde o texto é
+colado, como já acontece com as quatro seções do prompt. Nunca uma terceira, e nunca uma seção de
+especificação técnica (JSON Schema): isso é artefato de documentação, não de configuração.
+*Motivo:* a seção nomeada pelo campo de destino elimina a dúvida de onde cada texto vai. E não existe
+terceira porque não existe um terceiro campo para colá-la.
 
-**R16 — §2 e §3 do manual não chegam ao modelo.** São documentação e área de estágio. Tudo que o agente
-precisa saber em runtime tem que estar no prompt principal.
-*Motivo:* regra deixada só na §2 é lacuna funcional silenciosa — parece configurada e não está.
+**R16 — As duas seções do manual são sempre-ativas.** §1 e §2 são campos da plataforma, pagos em **todos**
+os turnos junto com o schema da função — não só quando a função é chamada.
+*Motivo:* a versão anterior desta regra afirmava o contrário, que a §2 era documentação fora do alcance do
+modelo. Sob essa premissa, toda medição de sempre-ativo feita nestes agentes subestimou o custo por uma §2
+inteira vezes o número de funções, e regra escrita na §2 parecia gratuita. Não é: custa como a §1.
+*Consequência:* regra que vale para o fluxo inteiro vai no prompt principal e **não** se repete na §2;
+regra que só vale ao ler o retorno daquela função vai na §2 e **não** se repete no prompt. Duplicar entre
+os dois paga duas vezes e produz deriva (R19).
 
 ## Dados
 
@@ -357,8 +438,15 @@ seguinte só aponta **qual função** consultar, sem repetir a ressalva.
 
 ## Conduta, segurança e plataforma
 
-**R21 — Mascarar documento exibido de volta.** Documentos de identificação ecoados no chat vão mascarados
-(`***.***.XXX-XX`).
+**R21 — Perguntas em blocos relacionados, dentro de uma meta de interações.** O agente agrupa numa mensagem
+só as perguntas do mesmo assunto — os dados de identificação numa lista, a qualificação em outra — em vez de
+uma pergunta por mensagem. A ficha define a meta de mensagens do agente, da saudação até executar o
+transbordo (default **5 a 7**), e o fluxo escrito precisa caber nela.
+*Motivo:* a cobrança do WhatsApp passou a ser por mensagem. Uma pergunta por mensagem multiplica o custo de
+canal e alonga o atendimento sem ganhar precisão — bloco relacionado é respondido de uma vez.
+*Limite:* bloco não é formulário. Passando de 4 ou 5 itens, ou misturando assuntos que o usuário
+responderia em momentos diferentes, parta em dois. O teto de itens por lista do contrato de saída continua
+valendo dentro do bloco.
 
 **R22 — Limite de atuação em domínio regulado.** Domínio de saúde, jurídico ou financeiro exige uma regra
 explícita de "Sem aconselhamento [domínio]" nas regras de segurança, **mesmo que o cliente não peça**. Uma
@@ -381,15 +469,24 @@ resolvem inline (repetindo a regra curta) ou pelo nome do campo da plataforma.
 *Motivo:* o usuário e o modelo não têm "arquivos" como referência, e citar estrutura interna vaza processo
 interno numa conversa com o público.
 
-**R26 — Consciência de custo.** O bloco sempre-ativo — o prompt principal mais as descrições de função — é
-pago em **todos** os turnos. Nasce enxuto: sem dado que a função retorna, sem prosa de justificativa, sem
-regra escrita duas vezes. Quando precisar cortar, corte **redundância e verbosidade**, nunca regra: o
-racional vai para o relatório, onde não é pago por turno.
+**R26 — Consciência de custo.** O bloco sempre-ativo é pago em **todos** os turnos: as 4 seções do prompt,
+mais **§1 + §2 + schema de cada função**. Nasce enxuto: sem dado que a função retorna, sem prosa de
+justificativa, sem regra escrita duas vezes. Quando precisar cortar, corte **redundância e verbosidade**,
+nunca regra: o racional vai para o relatório, onde não é pago por turno.
 
-O **arquivo** que a função retorna não entra nesse bloco — só a descrição dela entra. Daí o corolário de
-desenho: **menos funções é mais barato que arquivos menores.** Funda o que é sempre chamado no mesmo trecho
-do fluxo numa função só; mantenha separada apenas a que é raramente acionada, para carregar sob demanda.
-Partir um arquivo grande em duas funções piora o custo, porque paga mais uma descrição em todo turno.
+O **arquivo de dados** que a função retorna não entra nesse bloco — é pago só no turno da chamada. Daí a
+conta de desenho, que tem dois lados e precisa dos dois:
+
+- **Fundir economiza** uma §1 + §2 + schema por turno, em todos os turnos da conversa.
+- **Fundir custa** carregar o JSON da outra função em toda chamada isolada. A plataforma devolve o
+  **arquivo cheio** — não há filtro por parâmetro. Fundir uma base pequena numa grande faz toda consulta à
+  pequena pagar as duas.
+
+Regra prática: **funda** quando as duas forem quase sempre acionadas juntas **e** a menor for pequena;
+**mantenha separada** quando uma for raramente acionada (carga preguiçosa) **ou** quando as duas bases
+forem grandes. Não force a fusão: assunto genuinamente distinto merece função própria. Partir um arquivo
+grande em duas funções piora os dois lados — paga mais uma §1, §2 e schema em todo turno, e não reduz o
+retorno.
 
 **R27 — Quatro campos, quatro seções.** A tela de configuração da plataforma tem quatro campos separados —
 Perfil do Agente Virtual, Diretrizes de Atendimento, Regras de Conduta, Regras de Segurança — e o arquivo de
@@ -473,6 +570,7 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 ### 🅰️ Trilha A — [Ação]
 ### 🅱️ Trilha B — [Informação]
 ### 🅲 Trilha C — Repasse Simples
+### ✅ Confirmação dos Dados
 ### 🧯 Bordas
 ### 🔢 Regra de Tentativas e Transbordo
 
@@ -510,12 +608,17 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 - **Trilha B** — quais funções respondem o quê, a pergunta de fechamento ("posso ajudar em mais alguma
   coisa?") e o encerramento com resolução positiva. **Ainda executa o transbordo** (R9).
 - **Trilha C** — coleta mínima, fila e transbordo. Uma linha explícita proibindo a coleta completa aqui.
+- **Confirmação dos Dados** — o que o agente lê de volta antes de executar o transbordo, e o que faz se o
+  usuário corrigir algum item. Presente quando `fluxo.confirma_antes_executar = Sim` (default). Termina
+  executando a função **no mesmo turno** da confirmação: o agente não espera um segundo "sim" depois de
+  executar, e não escreve despedida nenhuma (R9).
 - **Bordas** — tabela `situação | ação`, com **uma linha por borda**: retorno vazio de função, falha técnica
   (R10a), dado que o usuário não dá (R10b não; ver Tentativas), e conflito entre regras (R10b). Tabela, não
   prosa: a borda tem que ser encontrável por varredura visual, não por leitura.
 - **Regra de Tentativas e Transbordo** — o limite de R10 e o que fica `"Não coletado"`.
-- **Formato da Resposta** — o contrato de saída, em 4 a 6 linhas: quantas perguntas por mensagem, teto de
-  itens em lista, se numera, se usa emoji, e qual mensagem é template literal.
+- **Formato da Resposta** — o contrato de saída, em 4 a 6 linhas: como as perguntas se agrupam em blocos
+  relacionados e qual é a meta de interações (R21), teto de itens em lista, se numera, se usa emoji, e qual
+  mensagem é template literal.
   *Motivo:* é o passo que mais falta nos agentes existentes. Sem contrato, o modelo escolhe o formato a cada
   turno, e modelo pequeno escolhe mal com frequência.
 - **Linguagem e Formato** — tom da escrita e a regra do asterisco único (R24). Não repetir aqui o que já
@@ -526,7 +629,8 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 
 - `### 🔐 Consentimento` — **só** se `plataforma.trata_consentimento = Não`. Frase curta antes do primeiro
   dado pessoal, aguardar resposta, e encerramento cordial sem transbordo se o usuário recusar.
-- `### ✅ Confirmação dos Dados` — se o cliente quiser o resumo lido de volta antes da transferência.
+- `### 💳 Modalidade de Pagamento` — **só** se o domínio tiver convênio ou plano (R7a). A bifurcação
+  convênio × particular e quais campos se aplicam a cada uma.
 - Blocos de escopo, urgência ou exceção próprios do domínio.
 
 ## 2.3 `config/variaveis.md`
@@ -566,8 +670,8 @@ referências cruzadas dentro das outras colunas.
 | `__IA_ATENDIMENTO_FILA__` | Fila humana de destino; obrigatória sempre que a resolução for negativa |
 | `__IA_ATENDIMENTO_RESOLVIDO__` | Único parâmetro obrigatório em toda chamada de transbordo |
 
-A coluna de validação é onde mora a lógica: ENUM completo, condição de obrigatoriedade por trilha, regra de
-máscara e fallback. Descrição sem validação é campo sem regra.
+A coluna de validação é onde mora a lógica: ENUM completo, condição de obrigatoriedade por trilha, sentinela
+aceita no `enum` do parâmetro (R12b) e fallback. Descrição sem validação é campo sem regra.
 
 Acrescente, no rodapé, uma nota de aplicação com o que a plataforma precisa saber: variáveis a cadastrar,
 comportamento do nó de decisão de resolução, e o que muda se ele não existir.
@@ -609,10 +713,11 @@ justificar. Indentação de 4 espaços. Adapte o rótulo do usuário ao domínio
 
 ## 2.5 `ferramentas/manuais/*.md`
 
-Exatamente três seções, separadas por `---`.
+Exatamente duas seções, separadas por `---`, nomeadas pelo campo da plataforma onde cada uma é colada.
+**As duas são sempre-ativas** (R16).
 
 ````markdown
-## 1. Descrição da Função (OpenAI Function Calling)
+## 1. Objetivo da Função
 
 [Prosa corrida, ≤ 950 caracteres. Sem saudação, sem "esta função serve para". Duas coisas: o que retorna e
 em qual intenção do usuário acioná-la. Fechar delimitando o que ela NÃO decide, quando houver função
@@ -620,7 +725,7 @@ vizinha que decida.]
 
 ---
 
-## 2. Diretrizes de Prompt (System Instructions)
+## 2. Condições de Execução
 
 ```markdown
 ================================================================
@@ -639,34 +744,15 @@ FUNÇÃO: nome_da_funcao
 - [responder só o subconjunto perguntado, nunca colar a base inteira]
 - [nunca inventar valor que não conste no retorno]
 ```
-
----
-
-## 3. Exemplos Práticos de Diálogos
-
-### Cenário 1: [nome do caso]
-
-> **Usuário:** *"[fala]"*
->
-> **Agente:** *"[resposta]"*
-
-### Cenário 2: [caso com o erro clássico]
-
-> **Usuário:** *"[fala]"*
->
-> **Agente:** *"[resposta correta]"*
->
-> ❌ **Errado:** [o que não fazer, e o defeito que produz]
 ````
 
 **Detalhes que não são óbvios:**
 
-- **§2 e §3 não chegam ao modelo** (R16). Se uma regra precisa valer em runtime, ela tem que estar no prompt
-  principal também.
-- Nos diálogos da §3, o negrito das falas do agente usa **um** asterisco — os exemplos são o que a equipe
-  copia para testar.
-- Pelo menos um cenário com `❌ **Errado:**`. O exemplo negativo é o que impede a regra de ser "simplificada"
-  na revisão seguinte.
+- **Não existe seção de exemplos.** Não há um terceiro campo na plataforma para colá-la, e exemplo que o
+  modelo não recebe não ensina nada ao agente — só cria uma segunda versão da regra, que a revisão seguinte
+  corrige de um lado só. Os casos de teste vão para a matriz de homologação (Passo 5).
+- **A §2 custa o mesmo que a §1** (R16). Escreva nela só o que é específico de ler o retorno **desta**
+  função. O que vale para o fluxo inteiro vai no prompt principal, uma vez.
 - A função de transbordo é a única sem JSON correspondente, e sua §2 é a mais longa: carrega a tabela de
   filas, a regra de resolução e a lista completa de parâmetros.
 
@@ -697,9 +783,9 @@ Um cliente típico tem de **3 a 5** funções `get_*`, mais o transbordo. Acima 
 fragmentação de um mesmo assunto (R19) antes de aceitar — mas não force a fusão: assunto genuinamente
 distinto merece função própria.
 
-*Por que o número importa:* cada função paga a sua descrição no sempre-ativo, em todo turno. O arquivo de
-dados dela, não. Fundir duas funções sempre chamadas no mesmo trecho do fluxo economiza uma descrição por
-turno; partir um arquivo grande em duas funções **piora** o custo.
+*Por que o número importa:* cada função paga **§1 + §2 + schema** no sempre-ativo, em todo turno; o arquivo
+de dados dela, só no turno da chamada. A conta dos dois lados — quando fundir compensa e quando não — está
+na R26. Partir um arquivo grande em duas funções **piora** o custo.
 
 ---
 
@@ -710,7 +796,9 @@ turno; partir um arquivo grande em duas funções **piora** o custo.
 - **Inventar** nome de convênio, serviço, profissional, unidade, fila ou URL.
 - **Citar caminho de pasta, nome de arquivo ou número de seção** dentro do que vira prompt (R25).
 - **Hardcodar no prompt** dado que uma função retorna (R20, R26).
-- **Criar uma quinta seção `##`** no prompt principal (R27), ou uma quarta seção no manual (R15).
+- **Criar uma quinta seção `##`** no prompt principal (R27), ou uma terceira seção no manual (R15).
+- **Escrever despedida, aviso de transferência ou frase de encerramento** no conteúdo de prompt. Essa
+  mensagem é enviada pela plataforma depois da chamada, não pelo agente (R9).
 - **Deduzir o gênero do agente** pelo nome.
 - **Usar retorno vazio de função como negação.** Vazio significa "não veio", não "não existe". A única
   autorização para negar é uma lista de exclusão explícita, informada pelo cliente.
@@ -730,7 +818,7 @@ Rodar **todas** antes de entregar.
 4.  O card do atendente é JSON válido
 5.  Nenhum `**` como instrução de destaque no conteúdo de prompt
 6.  Descrição de cada função ≤ 950 caracteres
-7.  Todo manual com exatamente 3 seções, numeradas 1 → 2 → 3
+7.  Todo manual com exatamente 2 seções: `1. Objetivo da Função` e `2. Condições de Execução`
 8.  Nenhum caminho, nome de arquivo ou `§N` no conteúdo de prompt
 9.  Nenhum `[]` ou `null` nos JSONs de base
 10. Nenhuma tabela ou regra duplicada verbatim entre o prompt e um manual
@@ -743,14 +831,21 @@ Rodar **todas** antes de entregar.
 17. O bloco Bordas cobre as quatro: retorno vazio, falha técnica, dado não obtido, conflito entre regras
 18. Existe bloco de Formato da Resposta em Regras de Conduta
 19. Toda sentinela usada no prompt consta do `enum` do parâmetro correspondente, ou o parâmetro não tem
-    `enum`. Sentinela fora do enum faz a chamada ser descartada em silêncio
+    `enum`. Sentinela fora do enum faz a chamada ser descartada em silêncio (R12b)
+20. Nenhuma despedida, aviso de transferência ou frase de encerramento no conteúdo de prompt (R9)
+21. O caminho mais longo do fluxo cabe na meta de interações da ficha — conte as mensagens do agente da
+    saudação até o transbordo (R21)
+22. Havendo convênio ou plano no domínio, existe a bifurcação de modalidade e o caminho particular (R7a)
+23. Todo passo de coleta tem consumidor nomeado: parâmetro de função ou campo do card (R12a)
 ```
 
-Meça o **bloco sempre-ativo** — as 4 seções do prompt mais a descrição de cada função. É o que a plataforma
-reenvia a cada turno. Reporte o número medido, não estimado.
+Meça o **bloco sempre-ativo** — as 4 seções do prompt mais **§1 + §2 + schema de cada função**. É o que a
+plataforma reenvia a cada turno. Meça o **texto final**, o que vai ser colado na plataforma, nunca um
+rascunho: rascunho não conferido contra esta checklist já subestimou o resultado em 22 pontos percentuais,
+porque o que ele "economizava" era precisão que precisou voltar. Reporte o número medido, não estimado.
 
-Os itens 15 a 19 existem porque o agente roda em modelo pequeno: são as quatro lacunas que fazem um `nano`
-improvisar. Nenhum deles reduz token — três aumentam. É deliberado.
+Os itens 15 a 23 existem porque o agente roda em modelo pequeno: são as lacunas que fazem um `nano`
+improvisar. Vários deles aumentam o token em vez de reduzir. É deliberado.
 
 ---
 
@@ -769,6 +864,12 @@ Fechar exibindo, nesta ordem:
    mínimo: escopo assumido, o que acontece com demanda fora da lista de exclusão, se o consentimento entrou
    ou não e por quê, e o comportamento na trilha resolvida.
 5. **Custo do sempre-ativo**, medido.
+6. **A matriz de homologação**, escrita em `relatorios/homologacao.md` do cliente — uma linha por caso, no
+   formato `cenário | resultado esperado`. Cobre no mínimo: cada trilha até o desfecho; classificação vazia
+   ou fora do ENUM (R8); o caminho particular (R7a); o usuário que já abre dando vários dados (R10c);
+   mudança de demanda no meio da conversa (R10d); recusa de um dado (R10); falha de ferramenta (R10a); e o
+   desfecho resolvido **versus** transferido (R9). É o arquivo que a equipe usa para testar, e não vai para
+   a plataforma.
 
 **Nunca fechar dizendo "pronto" com pendência de dado de cliente aberta.** Diga o que está pronto para colar
 na plataforma, o que está pronto como documento interno, e o que não sobe até a pendência fechar.
@@ -777,6 +878,20 @@ na plataforma, o que está pronto como documento interno, e o que não sobe até
 
 ## Changelog
 
+- **2.0.0** — **Corrigido o contrato do runtime: a §2 do manual é sempre-ativa.** A R16 afirmava o
+  contrário — que §2 e §3 eram documentação fora do alcance do modelo. São dois campos da plataforma,
+  `Objetivo da Função` e `Condições de Execução`, pagos em todo turno junto com o schema; toda medição de
+  sempre-ativo feita sob a premissa antiga subestimou o custo por uma §2 vezes o número de funções. Daí
+  vêm: a tabela do contrato do runtime, a §3 removida (não há campo para ela, e exemplo que o modelo não
+  recebe só produz uma segunda versão da regra), os manuais renomeados pelos campos de destino, e a conta
+  de fusão de funções com os dois lados na R26. Outras mudanças de comportamento: a mensagem de
+  transferência é da plataforma e o prompt fica proibido de escrevê-la (R9); confirmação dos dados antes de
+  executar vira bloco padrão; perguntas passam a ser agrupadas em blocos relacionados com meta de
+  interações, por causa da cobrança por mensagem do WhatsApp (R21, que substitui a regra de mascaramento —
+  removida, porque o documento fica no histórico da plataforma e é coletado sob consentimento); bifurcação
+  de modalidade de pagamento com caminho particular explícito (R7a); coleta só com consumidor nomeado
+  (R12a); sentinela declarada no enum promovida de item de checklist a regra (R12b); e reclassificação na
+  mudança de demanda (R10d). O Passo 5 passa a emitir a matriz de homologação.
 - **1.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
   prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Medido: trocar
   os headers por tags XML custaria +217 tokens por turno por agente (+5% do campo), sem ganho

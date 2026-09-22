@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Criar Agente de Autoagendamento — Clinux
@@ -273,6 +273,11 @@ o que está pronto como documento interno, e o que não sobe até fechar pendên
 ---
 
 ## Changelog
+
+- **1.3.0** — Alinhamento com a correção do contrato do runtime nas skills de Pré Agendamento. O invariante
+  de custo dizia que ali a §2 do manual não chegava ao modelo; não é verdade — são os mesmos dois campos
+  por função, e o Auto Agendamento era quem estava certo. Removida a regra de mascaramento de documento,
+  descontinuada pelo cliente.
 
 - **1.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
   prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Markdown

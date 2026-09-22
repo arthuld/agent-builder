@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 metadata:
-  version: "2.2.0"
+  version: "3.0.0"
 ---
 
 # Auditar Agente Virtual
@@ -29,8 +29,46 @@ existir mas não *como* deve ser, então reporta como observação em vez de ach
 
 > *"Sei que exige mascaramento de CPF, não sei o formato. Verifiquei só presença/ausência."*
 
+A regra de mascaramento não existe mais, mas o modo de falha é o mesmo em qualquer critério: sem o limiar
+escrito junto, a verificação degrada para presença/ausência sem ninguém perceber.
+
 Por isso cada linha das tabelas abaixo traz **o que verificar** e **o que conta como violação**. Sem os dois,
 o achado não é acionável e vira discussão.
+
+## O modelo alvo
+
+Os agentes auditados aqui rodam em **`gpt-5.4-nano`**, com `reasoning_effort` em `none`. É a mesma premissa
+sob a qual as skills de criação escrevem, e ela muda o que conta como defeito:
+
+- **Borda não escrita é comportamento inventado.** Modelo pequeno não infere o passo que falta — improvisa.
+  Uma borda implícita num agente frontier é folga; aqui é bug.
+- **Saída fechada é controle.** Enum, template literal e tabela de decisão são as únicas restrições
+  estruturais disponíveis — a plataforma não expõe `allowed_tools`, `reasoning_effort` nem modo strict.
+  Afrouxar um enum para acomodar um valor é remover o último controle que não depende de o modelo obedecer.
+- **Prompt mais explícito não é prompt inchado.** Não reporte como excesso a redundância que existe para
+  fechar uma borda.
+
+**Se o modelo mudar, revise esta seção antes de aplicar critério nenhum.**
+
+## O contrato do runtime — o que chega ao modelo
+
+Sem esta tabela não há como separar defeito de runtime de defeito apenas documental, e a auditoria reporta
+os dois com a mesma gravidade:
+
+| Artefato | Campo da plataforma | Chega ao modelo |
+| --- | --- | --- |
+| As 4 seções de `config/agente.md` | Perfil · Diretrizes · Conduta · Segurança | **sempre-ativo** |
+| §1 do manual | **Objetivo da Função** | **sempre-ativo** |
+| §2 do manual | **Condições de Execução** | **sempre-ativo** |
+| Schema da função — nome, parâmetros, `description` de cada um | cadastro da função | **sempre-ativo** |
+| JSON de `ferramentas/dados/` | retorno da função | só no turno da chamada |
+| `config/clienteinfo.json` | outro módulo | **nunca** — é a tela da atendente humana |
+| `origem/`, `relatorios/` | — | **nunca** |
+
+Sempre-ativo é pago em **todos** os turnos, inclusive naqueles em que nenhuma função é chamada. **As duas
+seções do manual são sempre-ativas**, e regra duplicada entre o prompt e a §2 custa token de verdade, não só
+deriva. Uma medição feita sob a premissa antiga — a de que a §2 era documentação — subestima o custo do
+agente por uma §2 inteira vezes o número de funções.
 
 ## Localizar o cliente
 
@@ -50,15 +88,21 @@ Há dois tipos de agente neste workspace, e **metade dos critérios abaixo só v
 critérios errados produz ruído de alta gravidade num relatório que se vende por acionabilidade.
 
 ```bash
-# Categoria: Integrado se não houver base estática e os manuais tiverem 2 seções
-ls ferramentas/dados/*.json 2>/dev/null | wc -l     # 0 => Integrado
-head -20 ferramentas/manuais/*.md | grep -c '^## Objetivo da função'   # >0 => Integrado
+# Categoria: a presença da base estática é o sinal primário
+ls ferramentas/dados/*.json 2>/dev/null | wc -l     # 0 => Integrado, >0 => Base de conhecimento
+
+# confirmação pelo nome das variáveis
+grep -oE '__[A-Z0-9_]+__' config/variaveis.md | head -3   # casou => Base de conhecimento
 ```
+
+**Contar seções do manual não distingue mais as categorias** — as duas têm 2 seções, `Objetivo da Função` e
+`Condições de Execução`, que são os nomes dos campos da plataforma. Manual com 3 seções, ou com os rótulos
+antigos (`Descrição da Função`, `Diretrizes de Prompt`, `Exemplos Práticos de Diálogos`), é agente escrito
+sob a convenção anterior: reportar como achado de migração, não como sinal de categoria.
 
 | Sinal | **Base de conhecimento** | **Integrado** |
 |---|---|---|
 | `ferramentas/dados/*.json` | existe | **não existe** |
-| Seções por manual | 3 | **2** (`Objetivo da função` · `Condições de execução`) |
 | Nome de variável | `__IA_CAMPO__` | **nome do parâmetro do endpoint** (`EMPRESA_ID`, `CPF_DIGITADO`) |
 | Sentinelas de ausência | três estados obrigatórios | **proibidas** em campo obrigatório — retém a chamada e pergunta |
 | Fim do caminho feliz | transbordo | **gravação no sistema** |
@@ -89,8 +133,12 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | *(só Base de conhecimento)* Toda trilha termina executando a função de transbordo | Trilha que encerra sem executar. **Única exceção:** recusa de consentimento antes de qualquer coleta. Num agente **Integrado** o caminho feliz termina em **gravação**, não em transbordo — não reportar como violação |
 | *(só Base de conhecimento)* A trilha de informação resolvida **também** executa | "Dúvida sanada → encerrar sem acionar" — deixa a automação de fechamento sem gatilho |
 | Instrução manda **executar**, não anunciar | "Informe que está sendo encaminhado" sem a execução na mesma resposta |
-| Resumo antes do transbordo é informativo | "Exibir para confirmação" — o agente para e espera um segundo "sim" que ninguém trata |
-| Exemplo de diálogo concorda com a regra | Diálogo com "Confirma para mim:" — few-shot vence regra escrita acima dele |
+| Resumo confirmado **uma vez**, antes de executar | O agente confirma os dados coletados e executa no turno em que a confirmação chega. **Violação:** transbordar sem confirmar nada; ou pedir uma segunda confirmação, ou confirmar **depois** de a função já ter rodado — aí ele para num estado que nenhum passo resolve |
+| Nenhuma despedida ou aviso de transferência no prompt | "Vou transferir você para a nossa equipe agora" escrito no conteúdo de prompt. Quem envia a mensagem de encerramento ou transferência é a **plataforma**, depois da chamada, derivando-a das variáveis. Prompt que a escreve produz três defeitos: promete atendente na trilha resolvida, duplica a mensagem da plataforma, e diverge de si mesmo quando o texto aparece em mais de um lugar |
+| Perguntas agrupadas em blocos relacionados | Uma pergunta por mensagem onde os campos pertencem ao mesmo bloco. A cobrança do WhatsApp é por mensagem: cada pergunta isolada é custo de canal sem ganho de precisão. **Exceção:** menu numerado, onde a escolha é uma por vez |
+| Fluxo cabe na meta de interações | Caminho mais longo acima da meta declarada, ou meta não declarada. Contar as mensagens do agente da saudação até o transbordo |
+| Mudança de demanda reclassifica | Nada define o que acontece quando o usuário troca de assunto no meio. A nova demanda herda fila, qualificação ou item de interesse da anterior, e o atendente recebe um caso coerente com a conversa errada |
+| Modalidade de pagamento antes do convênio | Domínio com convênio ou plano sem bifurcação convênio × particular. Quem não tem convênio esgota as tentativas e é gravado como `"Não Informado"` — que significa **recusou informar**, não "não tem" |
 | Toda demanda tem destino | Valor de intenção sem trilha, ou trilha sem fila |
 | Fallback de intenção não reconhecida existe | Borda implícita: nada define o que fazer com valor vazio ou fora do ENUM |
 | Trilha de repasse coleta o mínimo | Triagem cadastral completa para demanda que só será repassada |
@@ -112,12 +160,12 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Tolerância fuzzy limitada à mesma entidade | Aproximação entre entidades diferentes (Tomografia/Angiotomografia). Em dúvida, falhar fechado |
 | *(só Base de conhecimento)* Sem valor ambíguo nos dados | `[]` onde o sentido é "todos" — é lido como "nenhum". Sentinela explícita (`["Todos"]`) |
 | Sem curinga que anula proibição | Item tipo `"Outros"` que autoriza afirmar disponibilidade do que o prompt proíbe |
+| Todo dado coletado tem consumidor | Passo de coleta cujo dado não vira parâmetro de função nem campo do card. Separar **orientação geral** ("quais são os canais") de **consulta individual** ("qual é o meu resultado"): a primeira não precisa de identificador. Pedir documento para uma função que devolve o mesmo texto para todo mundo faz a função parecer uma consulta autenticada que ela não é |
 
 ### Segurança
 
 | Verificar | Violação |
 | --- | --- |
-| Documento mascarado ao ecoar no chat | CPF exibido inteiro. **Formato: `***.***.XXX-XX`** — últimos 5 dígitos visíveis. Ausente ou em outro formato é violação |
 | *(só Base de conhecimento)* Três estados de ausência distintos | Mesmo texto para os três. `"Não Informado"` = recusou o que foi perguntado · `"Não coletado"` = nunca foi perguntado · `"Não se aplica"` = a trilha deliberadamente não pede |
 | *(só Integrado)* Nenhuma sentinela em campo obrigatório | Valor de reserva em parâmetro de endpoint. O endpoint responde **vazio**, e o vazio vira "não há resultado" — o bug se disfarça de indisponibilidade. Faltando o dado real, o agente **retém a chamada** e pergunta |
 | Consentimento antes do primeiro dado pessoal | Ausente **quando a plataforma não trata upstream**. A frase é curta, vem antes do primeiro dado, e aguarda resposta; recusa encerra cordialmente **sem transbordo**. "Justificar sob a ótica da LGPD" não é consentimento |
@@ -141,13 +189,13 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Verificar | Violação |
 | --- | --- |
 | Nenhum dado factual chumbado no prompt | Endereço, horário, preço ou lista que a função retorna, repetidos no sempre-ativo |
-| Funções sempre chamadas juntas estão fundidas | Duas ou mais funções acionadas no mesmo trecho do fluxo, cada uma pagando sua descrição em todo turno. O arquivo não custa; a descrição custa |
+| Número de funções justificado pela conta dos dois lados | **Fundir economiza** uma §1 + §2 + schema por turno, em todos os turnos. **Fundir custa** carregar o JSON da outra em toda chamada isolada — a plataforma devolve o arquivo cheio, sem filtro por parâmetro. **Violação:** duas funções quase sempre acionadas juntas e ambas com base pequena, mantidas separadas; **ou** uma base grande fundida a uma pequena, fazendo toda consulta à pequena pagar as duas. Não reportar fusão de assunto genuinamente distinto: função raramente acionada é carga preguiçosa, e separá-la é o desenho certo |
 | Descrição de função e de parâmetro sem conduta | Regra de comportamento na §1 ou na `description` de um parâmetro — sempre-ativo duplicando o prompt |
 | Regra geral de dados declarada uma vez | Repetição de "não memorizar" a cada item, ou duas declarações do mesmo princípio |
-| Sem duplicação entre prompt e manual | Tabela ou regra verbatim nos dois. O custo não é token, é **deriva**: a próxima correção vai num lado só |
+| Sem duplicação entre prompt e manual | Tabela ou regra verbatim nos dois. Custa **token** — a §2 é sempre-ativa — e custa **deriva**: a próxima correção vai num lado só. Regra que vale para o fluxo inteiro fica no prompt; regra de leitura do retorno daquela função fica na §2 |
 | *(só Base de conhecimento)* Um assunto, um arquivo dono | Mesmo fato em dois JSONs de dados |
-| Descrição de função ≤ 950 caracteres | §1 acima do teto — é pago em 100% dos turnos |
-| Manual com o número de seções da categoria | **Base de conhecimento: 3** (`Descrição` · `Diretrizes` · `Exemplos`). **Integrado: 2** (`Objetivo da função` · `Condições de execução`). Seção a mais, tipicamente "Tool Specification"/JSON Schema, desloca a numeração |
+| Descrição de função ≤ 950 caracteres | §1 acima do teto — é pago em 100% dos turnos. A §2 **não** tem teto duro, mas entra na medição do sempre-ativo |
+| Manual com exatamente 2 seções, nomeadas pelos campos | `## 1. Objetivo da Função` · `## 2. Condições de Execução`, nas duas categorias. Seção a mais — tipicamente "Exemplos Práticos de Diálogos" ou "Tool Specification"/JSON Schema — não tem campo onde ser colada. Rótulo antigo é achado de migração |
 | Prompt com exatamente 4 seções `##` | Quinta seção — a tela da plataforma tem quatro campos, e a quinta não tem onde ser colada |
 | Sem caminho de arquivo no prompt | `config/agente.md`, `§2` ou nome de pasta citados no conteúdo que vira prompt |
 | Markdown estrutura o prompt, nunca XML | Tags XML (`<perfil>`, `<etapa>`, `<regras>`, `<item>`) estruturando `config/agente.md` ou o bloco de diretrizes de um manual. Medido nos agentes existentes: trocar os headers markdown por tags custa **+217 tokens por turno por agente** (+5% do campo), sem ganho documentado — e o que o XML delimitaria, a plataforma já delimita, porque os 4 campos são entradas separadas. A documentação do modelo não prescreve formato; os blocos XML dos exemplos dela são orquestração multi-etapa de modelo frontier, não este caso |
@@ -162,12 +210,17 @@ Rode, não estime. Cada uma já pegou defeito real:
 # seções do prompt (esperado 4) — as duas categorias
 grep -c '^## ' config/agente.md
 
-# manuais fora do padrão — o esperado MUDA com a categoria (Passo 0)
-#   Base de conhecimento: 3 seções   |   Integrado: 2 seções
+# manuais fora do padrão — esperado 2 nas duas categorias
 for f in ferramentas/manuais/*.md; do echo "$(grep -c '^## ' "$f") $f"; done
+
+# rótulo antigo de seção — achado de migração, não de categoria
+grep -rln 'Descrição da Função\|Diretrizes de Prompt\|Exemplos Práticos' ferramentas/manuais/
 
 # seção de schema que não deveria existir — as duas categorias
 grep -rl 'Tool Specification' ferramentas/manuais/
+
+# despedida ou aviso de transferência escrito no prompt — quem envia é a plataforma
+grep -niE 'vou (te )?transferir|estou (te )?encaminhando|vou encerrar|ate logo|até logo' config/agente.md
 
 # variável declarada e ausente do card — as duas categorias
 # o regex NÃO pode ancorar em `IA_`: num agente Integrado as variáveis são
@@ -211,6 +264,18 @@ grep -nE 'não realiza|não atende|não oferece' config/agente.md
 | **Médio** | Custo, duplicação, inconsistência que ainda não quebrou |
 | **Baixo** | Higiene |
 
+**Procedência**, declarada ao lado da gravidade. São três, e elas não se misturam:
+
+| | O que é | Como escrever |
+| --- | --- | --- |
+| **Observado** | Está no arquivo, e você cita a linha. Contradição entre dois arquivos entra aqui | "`agente.md:33` obriga X; `variaveis.md:18` exige Y" |
+| **Inferido** | O arquivo permite o defeito, mas você não viu acontecer | "pode produzir", "fica indeterminado" — nunca "o agente faz" |
+| **Reproduzido** | Alguém rodou e viu. Só use quando houver conversa, log ou teste | "medido em produção: o agente reperguntou..." |
+
+*Motivo:* sem isso os três viram "Alto", e o cliente não sabe qual foi visto e qual foi deduzido. Risco
+inferido relatado como incidente comprovado queima a credibilidade do relatório inteiro na primeira vez que
+alguém confere.
+
 **Achado ≠ observação.** Se você não tem o critério para julgar, é observação — diga isso em vez de reportar
 como violação. Auditoria que classifica dúvida como defeito faz o cliente corrigir o que estava certo.
 
@@ -224,7 +289,8 @@ assimetria entre trilhas costuma ser regra de negócio, não descuido.
 Ordenado do mais grave para o menos. Cada item com:
 
 1. **O defeito**, em uma frase
-2. **Arquivo e evidência** — a linha, a contagem, o trecho
+2. **Arquivo e evidência** — a linha, a contagem, o trecho — com a **procedência**: observado, inferido ou
+   reproduzido
 3. **O efeito em produção** — o que o usuário ou o atendente sente
 4. **A correção proposta**
 
@@ -244,11 +310,25 @@ conversa — esta skill não escreve no cliente.
 | Tratar assimetria como descuido | Costuma ser regra de negócio. Verificar antes |
 | Comparar filas com uma lista padrão | Auditar a coerência **entre os arquivos do cliente** |
 | Achado sem evidência | Linha, contagem ou trecho — senão vira discussão |
+| Risco inferido escrito como incidente | Declarar a procedência. "Pode produzir" e "o agente faz" não são a mesma frase |
+| Medir o sempre-ativo sem as §2 | As duas seções do manual são campos da plataforma. Fora da conta, o custo do agente sai subestimado |
 | Achado sem efeito em produção | "Viola a convenção" não move ninguém; "o atendente recebe vazio" move |
 | Aplicar a correção | Esta skill propõe. A aplicação é pedida depois |
 
 ## Changelog
 
+- **3.0.0** — **Corrigido o contrato do runtime, e com ele sete critérios.** A §2 do manual é sempre-ativa —
+  é o campo `Condições de Execução` da plataforma —, e não documentação como as skills afirmavam. Entram a
+  tabela do contrato do runtime e a declaração do modelo alvo, que a auditoria não tinha: ela julgava sem
+  saber para qual modelo o prompt fora escrito, a mesma lacuna que a 2.2.0 fechou para o formato XML.
+  **Dois critérios foram invertidos:** pedir confirmação dos dados antes de executar era classificado como
+  defeito e é o comportamento correto — o defeito real, preservado, é confirmar *depois* da execução ou
+  pedir uma segunda confirmação; e "exemplo de diálogo é few-shot e vence a regra" saiu, porque exemplo de
+  manual nunca chegou ao modelo e a seção de exemplos deixou de existir. **Um critério foi removido:** o
+  mascaramento de documento, que o cliente descontinuou. Entram critérios para despedida escrita no prompt,
+  blocos de perguntas relacionadas com meta de interações, mudança de demanda, modalidade de pagamento,
+  coleta sem consumidor, e a conta de fusão de funções com os dois lados. A contagem de seções deixou de
+  distinguir as categorias — as duas têm 2 — e virou achado de migração.
 - **2.2.0** — Critério de formato de prompt: markdown estrutura, nunca XML. A regra e a medição (+217 tokens por turno por agente) já existiam nas skills de criação desde a adequação ao gpt-5.4-nano, mas não haviam chegado à auditoria — um agente podia ser criado sob a regra e auditado sem ela. Baseline com 3 repetições sobre um cliente-fixture cujo prompt inteiro era XML: **0 de 3** apontaram o formato, e **3 de 3** acharam o defeito-controle plantado na mesma seção, provando que auditaram e que a lacuna era de critério, não de atenção.
 - **2.1.0** — Passo 0: determinar a categoria do agente antes de aplicar critério. Metade dos critérios só vale para agentes com base de conhecimento, e aplicá-los a um agente integrado produzia ruído de alta gravidade. Corrigido um **falso negativo silencioso**: a checagem de variável ausente do card ancorava o regex em `IA_`, e num agente integrado — onde as variáveis são nomes de parâmetro de endpoint — os dois lados voltavam vazios e a verificação passava sem ter verificado nada. Critério de sentinela alinhado à R21 do modelo estático.
 - **2.0.0** — Autocontida e estruturada. Antes eram 934 palavras de prosa com **dois cabeçalhos** e 15 regras

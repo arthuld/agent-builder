@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 metadata:
-  version: "2.2.0"
+  version: "3.0.0"
 ---
 
 # Criar Agente Virtual Estático (Fluxo por Menu)
@@ -50,6 +50,25 @@ escolha entre resolver por estado ou por tabela, escolha a tabela.
 Medição de token: `tiktoken`, encoding `o200k_base`.
 
 **Se o modelo mudar, revise esta seção antes de tudo.**
+
+## O contrato do runtime
+
+Metade dos defeitos deste tipo de agente nasce de escrever uma regra num lugar que o modelo nunca lê. Esta
+tabela decide **onde** cada coisa se escreve:
+
+| Artefato | Campo da plataforma | Chega ao modelo |
+| --- | --- | --- |
+| As 4 seções de `agente.md` | Perfil · Diretrizes · Conduta · Segurança | **sempre-ativo** |
+| §1 do manual | **Objetivo da Função** | **sempre-ativo** |
+| §2 do manual | **Condições de Execução** | **sempre-ativo** |
+| Schema da função — nome, parâmetros, `description` de cada um | cadastro da função | **sempre-ativo** |
+| JSON de `ferramentas/dados/` | retorno da função | só no turno da chamada |
+| Card do atendente | outro módulo | **nunca** — é a tela da atendente humana |
+| `origem/`, `relatorios/` | — | **nunca** |
+
+Sempre-ativo é pago em **todos** os turnos, inclusive naqueles em que nenhuma função é chamada. **O manual
+inteiro é sempre-ativo**: não existe "deixar a regra na §2 para não pagar". O arquivo de dados, não —
+arquivo grande é barato, função a mais é cara.
 
 ## O estático é o dinâmico mais uma camada de menu
 
@@ -119,7 +138,8 @@ FICHA DE PARÂMETROS — <cliente>
   plataforma.no_decisao_resolucao ..
   negocio.regra_1..N ...............
   default.tentativas ............... 2
-  default.mascara_documento ........ ***.***.XXX-XX
+  fluxo.confirma_antes_executar .... Sim
+  fluxo.meta_interacoes ............ 5 a 7 mensagens do agente
   default.teto_lista ............... 5
 ```
 
@@ -178,7 +198,9 @@ Os dois desenhos existem. Deduzir errado quebra em silêncio: o atendimento não
 | Dado | Default |
 | --- | --- |
 | Tentativas inválidas antes do fallback | 2 |
-| Máscara de documento exibido no chat | `***.***.XXX-XX` |
+| Confirmação dos dados antes de executar o transbordo | Sim |
+| Meta de interações até finalizar ou transferir | 5 a 7 mensagens do agente |
+| Modalidade fora de convênio (particular) | Disponível — assumir que sim e confirmar no relatório |
 | Teto de itens por lista | 5 |
 | Formato de data | `DD/MM/AAAA` |
 | Delimitador de variável | `__NOME_DA_VARIAVEL__` |
@@ -293,6 +315,15 @@ caso de borda. Declare a ordem uma vez, em Regras de Segurança:
 *Motivo:* é a única borda que o próprio prompt cria. Sem ordem declarada, o modelo resolve o empate por
 proximidade no texto — e a regra de segurança é a que está mais longe do fluxo.
 
+**R13a — Modalidade de pagamento é um bloco próprio, antes do bloco de convênio.** Quando o domínio tiver
+convênio ou plano, a trilha pergunta **primeiro** a modalidade — convênio ou particular — e só entra no
+bloco de convênio se a resposta for convênio. Em particular, os campos de convênio ficam `"Não se aplica"`.
+Assuma que o atendimento particular existe e confirme no relatório: praticamente todo prestador atende
+particular.
+*Motivo:* sem esse bloco, quem não tem convênio esgota as tentativas da R12 e termina registrado como
+`"Não Informado"` — que a R6 define como **recusa explícita**. O atendente recebe "recusou informar o
+convênio" sobre alguém que simplesmente não tem um.
+
 ## Encerramento — o ponto de falha nº 1
 
 **R14d — Nenhum passo repergunta o que a conversa já resolveu.** A cláusula vai **na linha do passo**, não
@@ -309,14 +340,29 @@ Isso **não** vale para o menu da árvore: ali a numeração é contrato (R10) e
 que a primeira mensagem já declarava, e ofereceu três unidades para um serviço que só existe em uma. O
 modelo lê o passo que executa, não o parágrafo de abertura.
 
+**R14e — Mudança de demanda reclassifica, e invalida o que não se aplica.** O usuário pode pedir outra
+coisa depois de a trilha ter começado. Escreva no prompt gerado o que sobrevive e o que morre:
+
+> Mudando a demanda, voltar ao menu e reclassificar antes de continuar. Dado de identificação já informado
+> é reaproveitado **sem perguntar de novo**. Dado ligado à trilha anterior — fila, item de interesse,
+> bloco de qualificação — é descartado, e perguntado de novo só se a nova trilha precisar dele.
+
+*Motivo:* sem isso a nova trilha herda a fila e a qualificação da antiga, e o transbordo entrega um caso
+coerente com a conversa errada. É pior do que faltar dado: o atendente não tem como perceber.
+
 **R15 — Executar é uma ação; anunciar não realiza.** Toda trilha termina com a **execução** da função de
 transbordo. **Proibido escrever "vou te transferir" / "estou te encaminhando" sem executar a função na mesma
 resposta.**
 
 A formulação que funciona em produção, e que deve aparecer no prompt gerado, é esta — use-a literalmente:
 
-> Toda trilha do menu termina obrigatoriamente com a execução da função de transbordo. **Executar a função é
-> uma ação — anunciar a transferência em texto não a realiza.**
+> Toda trilha do menu termina obrigatoriamente com a execução da função de transbordo. *Executar a função é
+> uma ação — anunciar a transferência em texto não a realiza.*
+
+*A mensagem de transferência não é do agente.* Quem envia o texto de encerramento ou de transferência é a
+**plataforma**, depois da chamada, derivando-o das variáveis preenchidas. O prompt fica proibido de conter
+despedida, aviso de transferência ou frase de encerramento — o último turno do agente é a confirmação da
+R18, seguida da execução.
 
 **R16 — O transbordo é o handoff único.** **Toda** trilha executa a função, inclusive a de informação
 resolvida. A variável de resolução decide o que a plataforma faz **depois** da chamada — ela não decide se a
@@ -328,19 +374,22 @@ relatório sem gatilho: o atendimento nunca é entregue.
 **R17 — Falta de dado não bloqueia a execução.** O que a trilha não coleta vai como sentinela (R6). Fila
 indefinida nunca justifica não transferir — o fallback resolve.
 
-**R18 — Trilha com coleta exibe o resumo e executa na mesma resposta.** Trilha sem coleta executa
-imediatamente após a escolha da opção.
+**R18 — Trilha com coleta confirma e executa; trilha sem coleta executa direto.** Com
+`fluxo.confirma_antes_executar = Sim` (default), a trilha que coletou dados lê de volta o que coletou, pede
+**uma** confirmação, e executa a função no turno em que a confirmação chega. Com `Não`, o resumo é
+informativo e a execução acontece na mesma resposta do resumo. Trilha sem coleta executa imediatamente após
+a escolha da opção.
+*Motivo:* dado errado só é descoberto pela atendente humana, depois de a transferência já ter custado. A
+confirmação é a única checagem antes disso.
 
-**R19 — Três armadilhas de redação que produzem exatamente este defeito.** Evitar no prompt **e** nos
+**R19 — Duas armadilhas de redação que produzem exatamente este defeito.** Evitar no prompt **e** nos
 manuais:
 
-1. **Resumo pedindo confirmação.** *"Exibir os dados para confirmação"* faz o agente parar e esperar um
-   segundo "sim" que nunca é tratado. Diga explicitamente que o resumo é informativo, não é pedido de
-   autorização.
+1. **Esperar um "sim" que ninguém trata.** A confirmação da R18 é **uma**, e vem **antes** da execução.
+   Pedir confirmação *depois* de a função já ter rodado deixa o agente parado num estado que nenhum passo
+   seguinte resolve. Uma confirmação, antes; nunca duas, nunca depois.
 2. **Descrever a fala em vez do ato.** *"Informe que o atendimento está sendo encaminhado"* ensina o agente a
    emitir a frase e encerrar o turno. Toda instrução tem que ser sobre executar a função.
-3. **Exemplo que contradiz a regra.** Um diálogo com *"Confirma para mim:"* é few-shot e **vence a regra
-   escrita acima dele**. Revise os exemplos dos manuais contra as regras.
 
 **R20 — Cada proibição vem com a saída correspondente.** Cercar o transbordo só de proibições (*"proibido
 transferir sem X"*, *"proibido sem Y"*) faz o modelo ler a transferência como ação de risco e hesitar.
@@ -384,12 +433,29 @@ e pergunta. Nunca supor documento, convênio ou qualquer parâmetro não informa
 *Motivo:* parâmetro inventado retorna dado de outra pessoa ou vazio, e os dois viram resposta errada com
 cara de certa.
 
-**R25 — Três seções no manual, exatamente.** `## 1. Descrição da Função` · `## 2. Diretrizes de Prompt` ·
-`## 3. Exemplos Práticos de Diálogos`. Nunca uma quarta, e nunca seção de especificação técnica.
+**R24a — Só colete dado que tem finalidade na trilha em curso.** Todo campo de um bloco de coleta precisa
+de um consumidor nomeado: um parâmetro da função, ou um campo que o atendente recebe no card. Sem
+consumidor, o campo sai do bloco. Em particular, separe **orientação geral** ("como faço para acessar X",
+"quais são os canais") de **consulta individual** ("qual é o meu X"): a primeira não precisa de
+identificador nenhum.
+*Motivo:* medido em produção — um agente pedia documento para uma função que devolvia só canais e prazos
+genéricos, iguais para todo mundo. O dado não alimentava nada, e a função passava a parecer uma consulta
+autenticada que ela não fazia.
 
-**R26 — §2 e §3 do manual não chegam ao modelo.** São documentação. Tudo que o agente precisa em runtime
-tem que estar no prompt principal.
-*Motivo:* regra deixada só na §2 é lacuna funcional silenciosa — parece configurada e não está.
+**R25 — Duas seções no manual, com o nome do campo da plataforma.** Todo manual de função tem exatamente
+`## 1. Objetivo da Função` · `## 2. Condições de Execução` — os nomes dos dois campos onde o texto é colado,
+como já acontece com as quatro seções do prompt. Nunca uma terceira, e nunca seção de especificação técnica.
+*Motivo:* a seção nomeada pelo campo de destino elimina a dúvida de onde cada texto vai. E não existe
+terceira porque não existe um terceiro campo para colá-la.
+
+**R26 — As duas seções do manual são sempre-ativas.** §1 e §2 são campos da plataforma, pagos em **todos**
+os turnos junto com o schema da função — não só quando a função é chamada.
+*Motivo:* a versão anterior desta regra afirmava o contrário, que a §2 era documentação fora do alcance do
+modelo. Sob essa premissa, toda medição de sempre-ativo subestimou o custo por uma §2 inteira vezes o número
+de funções, e regra escrita na §2 parecia gratuita. Não é: custa como a §1.
+*Consequência:* regra que vale para o fluxo inteiro vai no prompt principal e **não** se repete na §2;
+regra que só vale ao ler o retorno daquela função vai na §2 e **não** se repete no prompt. Duplicar entre
+os dois paga duas vezes e produz deriva (R29).
 
 ## Dados, conduta e plataforma
 
@@ -432,7 +498,14 @@ entre o prompt e um manual.
 *Motivo:* o custo não é token — é deriva. A próxima correção é aplicada num lado só e as duas versões se
 contradizem em silêncio.
 
-**R30 — Mascarar documento exibido de volta** (`***.***.XXX-XX`).
+**R30 — Perguntas em blocos relacionados, dentro de uma meta de interações.** O bloco de coleta é emitido
+como **uma** mensagem com a lista dos campos pedidos, não como uma pergunta por mensagem. A ficha define a
+meta de mensagens do agente, da saudação até executar o transbordo (default **5 a 7**), e a trilha mais
+longa da árvore precisa caber nela.
+*Motivo:* a cobrança do WhatsApp passou a ser por mensagem. Uma pergunta por mensagem multiplica o custo de
+canal e alonga o atendimento sem ganhar precisão — bloco relacionado é respondido de uma vez.
+*Limite:* bloco não é formulário. Passando de 4 ou 5 campos, parta em dois. E isto não vale para o menu: ali
+a escolha é uma por vez, porque a numeração é contrato (R10).
 
 **R31 — Limite de atuação em domínio regulado.** Saúde, jurídico ou financeiro exigem regra explícita de
 "Sem aconselhamento [domínio]" nas regras de segurança, **mesmo que o cliente não peça**. Uma clínica nunca
@@ -557,7 +630,7 @@ Este documento consolida as diretrizes de personalidade, regras operacionais, de
 ```
 
 Blocos condicionais, conforme a ficha: `### 🔒 Consentimento` só se a plataforma **não** tratar upstream;
-blocos de borda próprios do domínio (ex: convênio sem cobertura → oferecer particular ou atendente).
+blocos de borda próprios do domínio (ex: convênio sem cobertura → seguir pela trilha particular, R13a).
 
 **Os três blocos que existem por causa do modelo pequeno:**
 
@@ -569,8 +642,9 @@ blocos de borda próprios do domínio (ex: convênio sem cobertura → oferecer 
 - **Bordas** — tabela `situação | ação`, uma linha por borda: retorno vazio (R14b), falha técnica (R14a),
   tentativas esgotadas (R12), conflito entre regras (R14c). Tabela, não prosa: a borda tem que ser
   encontrável por varredura visual.
-- **Formato da Resposta** — o contrato de saída, em 4 a 6 linhas: quantas perguntas por mensagem, teto de
-  itens em lista, se numera, se usa emoji, e qual mensagem é template literal.
+- **Formato da Resposta** — o contrato de saída, em 4 a 6 linhas: como o bloco de coleta se emite em uma
+  mensagem só e qual é a meta de interações (R30), teto de itens em lista, se numera, se usa emoji, e qual
+  mensagem é template literal.
   *Motivo:* sem contrato, o modelo escolhe o formato a cada turno — e modelo pequeno escolhe mal com
   frequência. Não repetir aqui o que já estiver em Linguagem e Formato.
 
@@ -592,7 +666,8 @@ Escolha uma opção digitando o número:
 
 ```markdown
 **Bloco DadosPessoais** — nome completo · telefone · data de nascimento
-**Bloco Convenio** — nome do convênio, ou "Particular"
+**Bloco Modalidade** — convênio ou particular; vem **antes** do Bloco Convenio (R13a)
+**Bloco Convenio** — nome do convênio; só quando a modalidade for convênio
 ```
 
 **Tabela de Trilhas** — uma linha por folha da árvore, sem exceção:
@@ -675,17 +750,18 @@ depois, pareados por índice. Tamanhos diferentes desalinham o card em silêncio
 
 ## 2.6 Manual da função de transbordo
 
-Três seções (R25). A §2 deste manual é a mais longa: carrega a tabela de filas, a regra de resolução, a lista
-completa de parâmetros e — obrigatoriamente — **a nota de compatibilidade de sentinela com o schema (R21)**.
+Duas seções (R25), **as duas sempre-ativas** (R26). A §2 deste manual é a mais longa: carrega a tabela de
+filas, a regra de resolução, a lista completa de parâmetros e — obrigatoriamente — **a nota de
+compatibilidade de sentinela com o schema (R21)**.
 
 ````markdown
-## 1. Descrição da Função (OpenAI Function Calling)
+## 1. Objetivo da Função
 
 [Prosa corrida, ≤ 950 caracteres. O que a função faz e em qual momento acioná-la.]
 
 ---
 
-## 2. Diretrizes de Prompt (System Instructions)
+## 2. Condições de Execução
 
 ```markdown
 ================================================================
@@ -701,19 +777,11 @@ FUNÇÃO: nome_da_funcao
 - Campos condicionais são string livre, sem enum/pattern/format — a sentinela
   "Não coletado" precisa ser um valor válido, senão a chamada é descartada em silêncio.
 ```
-
----
-
-## 3. Exemplos Práticos de Diálogos
-
-### Cenário 1: [trilha com coleta]
-
-> **Usuário:** *"[escolha]"*
->
-> **Agente:** *"[resumo informativo]"*  → e executa a função na mesma resposta
->
-> ❌ **Errado:** pedir confirmação depois do resumo e esperar um novo "sim".
 ````
+
+**Não existe seção de exemplos.** Não há um terceiro campo na plataforma para colá-la, e exemplo que o
+modelo não recebe não ensina nada ao agente — só cria uma segunda versão da regra, que a revisão seguinte
+corrige de um lado só. Os casos de teste vão para a matriz de homologação (Passo 5).
 
 ## 2.7 `ferramentas/dados/*.json`
 
@@ -729,10 +797,12 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 - **Normalizar assimetria** entre trilhas irmãs sem confirmar (R9).
 - **Usar rótulo em prosa como nome de fila** ("equipe de agendamento" não é identificador).
 - **Escrever a fala de transferência** sem a execução da função (R15, R19).
-- **Pedir confirmação depois do resumo** (R19.1).
+- **Pedir uma segunda confirmação, ou confirmar depois de executar a função** (R19.1).
+- **Escrever despedida, aviso de transferência ou frase de encerramento** no conteúdo de prompt. Essa
+  mensagem é enviada pela plataforma depois da chamada, não pelo agente (R15).
 - **Exibir código interno de trilha** ao usuário (R11).
 - **Citar caminho de pasta ou arquivo** no conteúdo do prompt (R34).
-- **Criar uma quinta seção `##`** no prompt (R36) ou uma quarta no manual (R25).
+- **Criar uma quinta seção `##`** no prompt (R36) ou uma terceira no manual (R25).
 - **Deduzir o gênero do agente** pelo nome.
 
 ---
@@ -744,7 +814,7 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 2.  Nenhuma trilha coleta dado além do que a tabela declara
 3.  Fila de fallback definida para opção não reconhecida e tentativas esgotadas
 4.  Seção de encerramento presente, com a formulação "ação, não mensagem"
-5.  Nenhum exemplo de diálogo pede confirmação depois do resumo
+5.  Nenhuma instrução pede uma segunda confirmação nem confirmação depois da execução (R19.1)
 6.  Nenhuma instrução descreve a fala de transferência sem a execução
 7.  Toda sentinela usada no prompt consta do `enum` do parâmetro, ou o parâmetro não tem `enum` (R21).
     Schema afrouxado para acomodar sentinela é defeito, não solução
@@ -755,7 +825,8 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 12. Numeração de submenu reinicia em 1
 13. Código interno de trilha nunca exibido, sempre preenchido
 14. Nenhum `**` como instrução de destaque no conteúdo de prompt
-15. §1 de cada função ≤ 950 caracteres; todo manual com exatamente 3 seções
+15. §1 de cada função ≤ 950 caracteres; todo manual com exatamente 2 seções, `1. Objetivo da Função` e
+    `2. Condições de Execução`
 16. Nenhum caminho, nome de arquivo ou `§N` no conteúdo de prompt
 17. O prompt tem exatamente 4 seções `##`
 18. Nenhum nome próprio de outro cliente
@@ -763,10 +834,20 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 20. O bloco Bordas cobre as quatro: retorno vazio (R14b), falha técnica (R14a), tentativas esgotadas (R12),
     conflito entre regras (R14c)
 21. Existe bloco de Formato da Resposta em Regras de Conduta
+22. Nenhuma despedida, aviso de transferência ou frase de encerramento no conteúdo de prompt (R15)
+23. A trilha mais longa cabe na meta de interações da ficha — conte as mensagens do agente da saudação até
+    o transbordo (R30)
+24. Havendo convênio ou plano no domínio, existe o Bloco Modalidade antes do Bloco Convenio (R13a)
+25. Todo campo de bloco de coleta tem consumidor nomeado: parâmetro de função ou campo do card (R24a)
 ```
 
-Os itens 19 a 21 existem porque o agente roda em modelo pequeno: são as lacunas que fazem um `nano`
-improvisar. Nenhum deles reduz token — todos aumentam. É deliberado.
+Meça o **bloco sempre-ativo** — as 4 seções do prompt mais **§1 + §2 + schema de cada função**. Meça o
+**texto final**, o que vai ser colado na plataforma, nunca um rascunho: rascunho não conferido contra esta
+checklist já subestimou o resultado em 22 pontos percentuais, porque o que ele "economizava" era precisão
+que precisou voltar. Reporte o número medido, não estimado.
+
+Os itens 19 a 25 existem porque o agente roda em modelo pequeno: são as lacunas que fazem um `nano`
+improvisar. Vários deles aumentam o token em vez de reduzir. É deliberado.
 
 ---
 
@@ -782,6 +863,12 @@ improvisar. Nenhum deles reduz token — todos aumentam. É deliberado.
    - *Dúvida aberta que não bloqueia.*
 5. **Pontos importantes** — as decisões que alguém vai questionar depois: assimetrias mantidas e por quê,
    serviços que ficaram fora do menu, se o consentimento entrou, e o comportamento na trilha resolvida.
+6. **A matriz de homologação**, escrita em `relatorios/homologacao.md` do cliente — uma linha por caso, no
+   formato `cenário | resultado esperado`. Cobre no mínimo: cada folha da árvore até o desfecho; opção
+   inválida e tentativas esgotadas; o caminho particular (R13a); o usuário que já abre declarando a opção
+   (R14d); mudança de demanda no meio da conversa (R14e); falha de ferramenta (R14a); e o desfecho
+   resolvido **versus** transferido (R16). É o arquivo que a equipe usa para testar, e não vai para a
+   plataforma.
 
 **Nunca fechar dizendo "pronto" com pendência de dado de cliente aberta.** Diga o que está pronto para colar,
 o que está pronto como documento interno, e o que não sobe até a pendência fechar.
@@ -790,6 +877,21 @@ o que está pronto como documento interno, e o que não sobe até a pendência f
 
 ## Changelog
 
+- **3.0.0** — **Corrigido o contrato do runtime: a §2 do manual é sempre-ativa.** A R26 afirmava o
+  contrário — que §2 e §3 eram documentação fora do alcance do modelo. São dois campos da plataforma,
+  `Objetivo da Função` e `Condições de Execução`, pagos em todo turno junto com o schema; toda medição de
+  sempre-ativo feita sob a premissa antiga subestimou o custo. Daí vêm: a tabela do contrato do runtime, a
+  §3 removida, os manuais renomeados pelos campos de destino, e a R19 reduzida a duas armadilhas — a
+  terceira ("exemplo que contradiz a regra é few-shot e vence a regra") deixou de existir junto com a §3, e
+  sua premissa estava errada de todo modo, porque exemplo de manual nunca chegou ao modelo. Outras mudanças
+  de comportamento: a mensagem de transferência é da plataforma e o prompt fica proibido de escrevê-la
+  (R15); a R18 passa a **pedir** uma confirmação antes de executar, e a R19.1 protege apenas o defeito real
+  — confirmação depois da execução, ou uma segunda confirmação; perguntas passam a ser agrupadas em blocos
+  relacionados com meta de interações, por causa da cobrança por mensagem do WhatsApp (R30, que substitui a
+  regra de mascaramento — removida, porque o documento fica no histórico da plataforma e é coletado sob
+  consentimento); Bloco Modalidade antes do Bloco Convenio, com caminho particular explícito (R13a); coleta
+  só com consumidor nomeado (R24a); e reclassificação na mudança de demanda (R14e). O Passo 5 passa a
+  emitir a matriz de homologação.
 - **2.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
   prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Medido: trocar
   os headers por tags XML custaria +217 tokens por turno por agente (+5% do campo), sem ganho

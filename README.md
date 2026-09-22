@@ -134,7 +134,6 @@ nome da pasta.
 | Sinal | Base de conhecimento | Integrado |
 |---|---|---|
 | Dados | `ferramentas/dados/*.json` estáticos | endpoints do sistema do cliente |
-| Seções por manual | 3 (`Descrição` · `Diretrizes` · `Exemplos`) | 2 (`Objetivo da função` · `Condições de execução`) |
 | Nome de variável | `__IA_CAMPO__` | nome do parâmetro do endpoint |
 | Fim do caminho feliz | transbordo para humano | gravação no sistema |
 | Sentinela de ausência | três estados, declarados no `enum` | proibida em campo obrigatório: retém a chamada e pergunta |
@@ -175,6 +174,10 @@ MeuCliente/
 
 As quatro seções `##` de `config/agente.md` correspondem exatamente aos quatro campos da tela da
 plataforma — Perfil, Diretrizes, Conduta e Segurança. Uma quinta seção não teria onde ser colada.
+
+O mesmo vale para os manuais: as duas seções são `Objetivo da Função` e `Condições de Execução`, os dois
+campos que a plataforma abre por função. **As duas são sempre-ativas**, reenviadas em todo turno junto com
+o schema — não existe seção de exemplos, porque não há um terceiro campo para colá-la.
 
 Onde essa pasta nasce depende do seu workspace: a skill procura clientes já montados e coloca o novo ao
 lado; não achando nenhum, pergunta.

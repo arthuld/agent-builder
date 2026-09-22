@@ -238,12 +238,14 @@ mensagem, apresentar **uma** confirmação consolidada, atrelar as variáveis s�
 ## 11. Custo: o sempre-ativo são 4 campos + 2 por função
 
 A plataforma reenvia a cada turno os 4 campos de prompt **e** os dois campos de cada função — *Objetivo da
-função* e *Condições de execução*. Diferente do Pré Agendamento, onde a §2 do manual é documentação que não
-chega ao modelo.
+função* e *Condições de execução*. **Vale igual no Pré Agendamento**, onde as mesmas duas seções aparecem
+como §1 e §2 do manual: a crença de que a §2 era documentação fora do alcance do modelo era falsa, e foi
+corrigida nas skills de criação e na de auditoria.
 
-**Consequência:** a convenção do projeto limita a **descrição da função a 950 caracteres** — o que aqui cobre
-só o *Objetivo*, que é a menor metade. Numa
-medição real, o *Objetivo* das 12 funções somou 508 tokens e as *Condições*, 2.303.
+**Consequência:** a convenção do projeto limita a **descrição da função a 950 caracteres** — o que cobre só
+o *Objetivo*, que é a menor metade. Numa medição real, o *Objetivo* das 12 funções somou 508 tokens e as
+*Condições*, 2.303: o teto de 950 caracteres governa menos de um quinto do custo por função. A *Condições*
+não tem teto duro, mas entra na medição do sempre-ativo.
 
 **Onde cada regra mora, para não pagar duas vezes:**
 
@@ -284,7 +286,8 @@ precisa para retomar de onde o paciente parou.
 - **Sem anexo.** Quando o paciente envia, o arquivo já está visível na conversa.
 - **O par digitado + localizado:** manter o **digitado**. No caso de falha mais comum — convênio não
   localizado — o campo localizado volta vazio, e é o digitado que carrega o que o paciente disse.
-- **CPF completo, não mascarado.** A máscara vale para o chat, onde o paciente lê. O card é interno.
+- **CPF completo.** Não há regra de mascaramento: o documento fica no histórico da plataforma e é
+  coletado sob consentimento obtido a montante.
 - **`RESUMO` é obrigatório antes de todo transbordo** e é o título do card. Sem ele o atendente recebe um
   cartão sem contexto justamente no atendimento que já falhou.
 

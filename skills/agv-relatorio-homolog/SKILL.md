@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Grep, Glob, Bash
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Relatório de Homologação (Resumido)
@@ -40,6 +40,10 @@ caminho nem assuma uma convenção de pastas.
 Leia `config/agente.md`, `config/variaveis.md`, `config/clienteinfo.json` e `ferramentas/manuais/*.md`.
 Extraia: nome do agente · modelo de fluxo · escopo e limites · menu e saudação · variáveis · blocos de
 coleta · trilhas e filas · funções de consulta.
+
+Leia também `relatorios/homologacao.md`, a matriz de casos que a skill de criação emite. **Ela é a fonte
+dos casos de teste — não reconstrua os casos a partir do prompt.** Se o arquivo não existir, o agente foi
+criado antes da convenção: diga isso no relatório e monte a matriz mínima da seção 11, em vez de omitir.
 
 ## Passo 2 — Obter o atalho de teste
 
@@ -158,9 +162,19 @@ Se não houver nenhuma, escreva "nenhuma" — a seção vazia é informação.
 
 Uma linha por função de consulta, indicando o conteúdo carregado.
 
-### 11 · Validações Executadas
+### 11 · Matriz de Teste e Validações Executadas
 
-Relação objetiva das verificações realizadas.
+Duas partes, nesta ordem:
+
+**A matriz**, copiada de `relatorios/homologacao.md` — uma linha por caso, `cenário | resultado esperado`,
+com uma coluna vazia de resultado observado para quem for testar preencher. É o que transforma "testar o
+agente" em uma lista finita com critério de aprovação. Faltando o arquivo, monte o mínimo: cada trilha até
+o desfecho, classificação inválida, o caminho particular quando houver convênio, mudança de demanda no meio
+da conversa, falha de ferramenta, e o desfecho resolvido versus transferido.
+
+**As validações já executadas**, em relação objetiva — as verificações mecânicas que rodaram na criação.
+Deixe claro que são estáticas: nenhuma delas é execução no modelo, e a matriz acima é justamente o que
+ainda falta rodar.
 
 Encerrar com: `Elaborado por [nome] em DD/MM/AAAA.`
 
@@ -189,11 +203,17 @@ passo a passo. Isso é objeto do relatório de produção.
 | Decisão deliberada listada como pendência | Separar: pendência é falta, decisão é escolha |
 | Tabela de trilhas sem motivo | Uma linha de motivo onde a decisão não é óbvia |
 | Atalho de teste vazio ou inventado | Perguntar. Sem ele o cliente não começa |
+| Reconstruir os casos de teste do zero | A matriz vive em `relatorios/homologacao.md`, emitida na criação. Reconstruir produz uma segunda versão que diverge |
+| Verificação estática apresentada como aprovação | Verificação mecânica não é execução no modelo. Dizer qual é qual |
 | Detalhar arquitetura aqui | Pertence ao relatório de produção |
 | Criar arquivo `_v2` | Atualizar o campo Revisão do mesmo arquivo |
 | Emoji ou primeira pessoa | Registro formal e impessoal; o documento vai para chamado |
 
 ## Changelog
+
+- **2.1.0** — A seção 11 passa a trazer a **matriz de teste**, lida de `relatorios/homologacao.md` em vez de
+  reconstruída a partir do prompt. Sem ela o relatório dizia "liberado para teste" sem dizer o que testar
+  nem qual era o resultado esperado, e a verificação mecânica da criação acabava lida como aprovação.
 
 - **2.0.0** — Autocontida: o modelo do relatório, que vivia em arquivo de template separado, foi inlinado —
   fonte única, sem risco de skill e template divergirem. Caminho fixo de pasta substituído por descoberta
