@@ -1,0 +1,37 @@
+[
+    {
+        "nome": "**__IA_MOTIVO_CONTATO__**",
+        "informacoes": [
+            {
+                "titulo": "Informações do Paciente",
+                "informacoes": [
+                    [
+                        "Nome Completo",
+                        "CPF",
+                        "Convênio"
+                    ],
+                    [
+                        "__IA_PACIENTE_NOME__",
+                        "__IA_PACIENTE_CPF__",
+                        "__IA_CONVENIO_NOME__"
+                    ]
+                ]
+            },
+            {
+                "titulo": "Resumo do Atendimento",
+                "informacoes": [
+                    [
+                        "Protocolo",
+                        "Resolvido pela Nina",
+                        "Fila"
+                    ],
+                    [
+                        "__IA_PROTOCOLO__",
+                        "__IA_ATENDIMENTO_RESOLVIDO__",
+                        "__IA_ATENDIMENTO_FILA__"
+                    ]
+                ]
+            }
+        ]
+    }
+]

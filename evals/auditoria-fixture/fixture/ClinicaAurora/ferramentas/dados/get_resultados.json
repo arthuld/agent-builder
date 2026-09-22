@@ -1,0 +1,8 @@
+{
+    "prazo_dias_uteis_min": 1,
+    "prazo_dias_uteis_max": 5,
+    "canais": [
+        "Portal do paciente",
+        "Retirada na recepção"
+    ]
+}

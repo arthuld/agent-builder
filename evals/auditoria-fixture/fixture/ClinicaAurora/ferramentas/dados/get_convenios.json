@@ -1,0 +1,17 @@
+{
+    "convenios": [
+        {
+            "nome": "Saude Total",
+            "exames_cobertos": [
+                "Ultrassonografia",
+                "Raio X"
+            ]
+        },
+        {
+            "nome": "VidaPlena",
+            "exames_cobertos": [
+                "Ultrassonografia"
+            ]
+        }
+    ]
+}
