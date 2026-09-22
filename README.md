@@ -1,7 +1,7 @@
 # agent-builder
 
 <p>
-  <img alt="plugin" src="https://img.shields.io/badge/plugin-v2.1.0-1f6feb">
+  <img alt="plugin" src="https://img.shields.io/badge/plugin-v2.1.1-1f6feb">
   <img alt="skills" src="https://img.shields.io/badge/skills-8%20ativas-2da44e">
   <img alt="custo" src="https://img.shields.io/badge/sempre--ativo-~512%20tok-8250df">
   <img alt="padrão" src="https://img.shields.io/badge/padr%C3%A3o-Agent%20Skills-555555">
