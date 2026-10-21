@@ -90,7 +90,7 @@ Três estados distintos, três tratamentos:
 
 | Estado | Tratamento |
 | --- | --- |
-| **Não respondeu** (erro/timeout) | Retry silencioso 1× no mesmo turno → mensagem de instabilidade, continuar sem transbordar → transbordo só na **3ª** falha da mesma operação. |
+| **Não respondeu** (erro/timeout) | Retry silencioso 1× no mesmo turno → mensagem de instabilidade, continuar sem transbordar → transbordo só na **3ª** falha da mesma operação. **Exceto a gravação**, que nunca é refeita (ver invariante 15). |
 | **Respondeu com 0 itens** | **Não é erro.** Seguir o tratamento de vazio da etapa. |
 | **Respondeu com N itens** | Ver *Regra Geral de Retorno de Função*. |
 
@@ -301,3 +301,46 @@ O consentimento é obtido **antes** do agente. O agente não tem, e não deve ga
 convenção do projeto de **exigir consentimento antes do primeiro dado pessoal** não se aplica a esta
 categoria, porque ele já foi obtido a montante. Confirmar por cliente, mas não reintroduzir por herança
 do Pré Agendamento.
+
+---
+
+## 15. Retorno da gravação: decidir pelo campo de resultado, nunca pelo `valor`
+
+A função de gravação devolve um **resultado**, não itens, e fica **fora** da Regra Geral de Retorno de
+Função. Contrato de referência (confirmar o do cliente — é bloqueante):
+
+```
+{"valor": 1, "variaveis": {"agendamento_resultado": "SUCESSO", "atendimento_id": "<número>"}}
+{"valor": 0, "variaveis": {"agendamento_resultado": "FALHA - HORARIO OCUPADO"}}
+{"valor": 0, "variaveis": {"agendamento_resultado": "FALHA"}}
+```
+
+Declarar no prompt uma **Tabela de Retorno da Gravação**, uma vez, em Diretrizes de atendimento; o manual
+da função só lista os valores e aponta para ela pelo nome:
+
+| Resultado | Fazer | Proibido |
+| --- | --- | --- |
+| `SUCESSO` | número = `atendimento_id` → anexar o pedido → confirmação com número, exame, data, hora e unidade, já com *"Quer agendar mais algum exame?"* → tag | transbordar (salvo pedido não anexado); gravar de novo o mesmo exame |
+| `FALHA - HORARIO OCUPADO` | informar e perguntar: outro horário ou atendente? Outro → nova consulta de disponibilidade com os mesmos critérios, nova escolha, novo resumo. Atendente → transbordo | repetir o mesmo horário; transbordar sem perguntar; tag |
+| `FALHA` | oferecer nova tentativa (com aceite) ou atendente; 3ª seguida → transbordo | tag |
+| Sem resposta | informar instabilidade sem confirmar nem negar, transbordar pedindo para conferir se gravou | refazer a chamada, inclusive em silêncio |
+
+**Por quê:**
+- `valor` é numérico; mandar o modelo procurar "SUCESSO" no `valor` fez agendamento concluído ser lido
+  como falha e transbordar. E `valor: 0` colide com "0 itens não é erro".
+- `FALHA - HORARIO OCUPADO` começa com "FALHA": comparar na ordem da tabela, ignorando acento e caixa.
+- Gravação é a única chamada **não idempotente**: fica fora do retry silencioso da Regra de Falha Técnica.
+  Repetir após timeout devolve "horário ocupado" contra o próprio paciente, ou grava em dobro.
+- Falha no anexo **não** desfaz o agendamento: confirmação **sem** a pergunta do loop → tag → transbordo
+  com frase neutra ao paciente, sem citar anexo. Manuais da tag, do anexo e do transbordo têm de dizer o
+  mesmo — na referência os três divergiam.
+
+---
+
+## 16. Arquivo do pedido médico guarda a URL
+
+`ARQUIVO_PEDIDO` (ou o equivalente do cliente) recebe a **URL do arquivo enviado**, exatamente como chegou
+na conversa — nunca um marcador de texto como `pedido_anexado` ou `recebido`. É esse valor que a função de
+anexo envia ao Clinux; um marcador passa na trava "pedido recebido" e chega ao endpoint como lixo, o anexo
+falha e o paciente é transbordado com o agendamento já gravado. Dizer isso na variável, na etapa do pedido
+e no parâmetro do manual de anexo.

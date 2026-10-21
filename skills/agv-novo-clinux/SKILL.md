@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Criar Agente de Autoagendamento — Clinux
@@ -141,6 +141,7 @@ Reexiba a ficha preenchida no relatório final (Passo 3), com a origem de cada v
 | **Escopo** | Exames (módulo AAGE), consultas (AAGC) ou ambos. Consultas trazem trilha de especialidade e médico, e outras funções. |
 | **Inventário real de funções** | Quais estão de fato configuradas na plataforma. Autocadastro contratado? Preço exibido para particular? Cada "não" remove função e muda uma etapa. |
 | **Funções de transbordo, uma por fila** | A fila vai no nome da função, não em parâmetro. Precisa do índice e do nome de cada uma, **e do gatilho que leva a cada fila** — duas portas sem critério de escolha é pior que uma. Perguntar também o que **mais** muda por fila: profundidade da coleta antes de transbordar, e o que aparece no card. Filas diferentes costumam querer coisas diferentes. |
+| **Contrato de retorno da gravação** | Campo e valores exatos que distinguem sucesso, horário ocupado e falha, e o campo do número do agendamento. Sem eles a Tabela de Retorno da Gravação é chute — e ler o campo errado faz agendamento concluído transbordar (ver invariantes). |
 | **Índices da trilha de consulta** | Só quando o escopo inclui consulta. Quais índices, e **para cada um**: reusa o endpoint da trilha de exames ou aponta para outro? Não deduzir nem um nem outro. |
 
 ### Regras de negócio — perguntar sempre, nunca herdar
@@ -274,6 +275,12 @@ o que está pronto como documento interno, e o que não sobe até fechar pendên
 ---
 
 ## Changelog
+
+- **1.4.0** — Retorno da gravação (invariante 15): decidir pelo campo de resultado, nunca pelo `valor`;
+  `FALHA - HORARIO OCUPADO` pergunta outro horário ou atendente; gravação fora do retry silencioso;
+  sucesso não transborda salvo anexo falho. Contrato de retorno virou dado bloqueante do Passo 0.
+  `ARQUIVO_PEDIDO` guarda a URL do arquivo, nunca marcador de texto (invariante 16). Origem: UltramedRJ,
+  21/10/2026.
 
 - **1.3.0** — Alinhamento com a correção do contrato do runtime nas skills de Pré Agendamento. O invariante
   de custo dizia que ali a §2 do manual não chegava ao modelo; não é verdade — são os mesmos dois campos
