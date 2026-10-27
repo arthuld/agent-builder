@@ -242,10 +242,10 @@ buraco.
 
 | Skill | Versão | Validação |
 |---|---|---|
-| `agv-auditoria` | 3.0.0 | GREEN 3/3 no formato de prompt, baseline 0/3 · GREEN 2/2 anterior · casos sem critério de julgamento: 5 → 0 e 1 |
+| `agv-auditoria` | 3.1.0 | Suíte de evals 6/6 · falso positivo de decisão deliberada 4/6 → 0/6 |
 | `agv-novo-estatico` | 3.0.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
 | `agv-novo-dinamico` | 2.0.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
-| `agv-novo-clinux` | 1.3.0 | GREEN 3/3 |
+| `agv-novo-clinux` | 1.4.0 | GREEN 3/3 |
 | `agv-relatorio-homolog` | 2.1.0 | GREEN 1/1 |
 | `agv-relatorio-prod` | 2.0.0 | GREEN 1/1 |
 | `agv-indice` | 1.0.0 | 4/4 na tabela de decisão |
@@ -261,7 +261,7 @@ execução criou a pasta na mesma altura sem perguntar, e não abriu a configura
 
 | Item | Situação |
 |---|---|
-| **Suíte de evals** | `claude plugin eval` existe e o repositório não tem `evals/`. Hoje toda validação é subagente ad-hoc, refeita à mão a cada mudança. Uma suíte transformaria os GREEN já obtidos em regressão automática, o maior ganho de manutenção disponível |
+| **Suíte de evals** | Existe em `evals/` (ver `evals/README.md`): dinâmica, estática, clinux (só negativo) e auditoria, com calibração. Pendente: estabilizar o critério de fluxo da dinâmica e definir o `--threshold` |
 | **GREEN de `/agv-fix`** | A skill entrou na v2.1.0 sem passar por RED/GREEN com controle. É a única do conjunto sem validação medida |
 | **`/agv-novo-animati`** | Não existe. Integração animati-netpacs |
 | **Variância dos GREEN de relatório** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. As mudanças são estruturais, aparecem ou não, mas a variância nunca foi medida |

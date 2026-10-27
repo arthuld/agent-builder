@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Auditar Agente Virtual
@@ -139,7 +139,7 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Fluxo cabe na meta de interações | Caminho mais longo acima da meta declarada, ou meta não declarada. Contar as mensagens do agente da saudação até o transbordo |
 | Mudança de demanda reclassifica | Nada define o que acontece quando o usuário troca de assunto no meio. A nova demanda herda fila, qualificação ou item de interesse da anterior, e o atendente recebe um caso coerente com a conversa errada |
 | Modalidade de pagamento antes do convênio | Domínio com convênio ou plano sem bifurcação convênio × particular. Quem não tem convênio esgota as tentativas e é gravado como `"Não Informado"` — que significa **recusou informar**, não "não tem" |
-| Toda demanda tem destino | Valor de intenção sem trilha, ou trilha sem fila |
+| Toda demanda tem destino | Valor de intenção sem trilha, ou trilha **que transfere para atendente** sem fila definida antes de executar. **Não é violação:** a trilha de informação resolvida com a fila em branco, quando a plataforma tem nó de decisão que lê a resolução antes do roteamento — ali a fila vazia é o desenho, e preenchê-la mandaria uma dúvida já resolvida para a fila de um atendente. Confirme na coluna de validação da fila em `variaveis.md` |
 | Fallback de intenção não reconhecida existe | Borda implícita: nada define o que fazer com valor vazio ou fora do ENUM |
 | Trilha de repasse coleta o mínimo | Triagem cadastral completa para demanda que só será repassada |
 | Passo não repergunta dado já dado | Passo de coleta sem cláusula própria de "se já informado, preencher sem perguntar". **Regra genérica no cabeçalho do fluxo não conta** — medida em produção: existia, e o agente ainda assim reperguntou se era agendamento ou dúvida depois de o usuário abrir com "quero agendar uma acupuntura" |
@@ -279,8 +279,19 @@ alguém confere.
 **Achado ≠ observação.** Se você não tem o critério para julgar, é observação — diga isso em vez de reportar
 como violação. Auditoria que classifica dúvida como defeito faz o cliente corrigir o que estava certo.
 
-**Decisão deliberada não é defeito.** Antes de reportar, verifique se há registro de que é intencional. Uma
-assimetria entre trilhas costuma ser regra de negócio, não descuido.
+**Decisão deliberada não é defeito — e você confere antes de reportar.** Para cada candidato a achado,
+procure registro de intenção em três lugares: a coluna **Regra de Validação** de `variaveis.md`, a nota de
+aplicação no rodapé dele, e o material em `origem/`. Havendo registro, o item **não entra no plano**: vai
+para a seção *Decisões deliberadas mantidas* do Passo 5, com a linha do registro. Assimetria entre trilhas
+costuma ser regra de negócio, não descuido.
+
+**Inferência sobre o schema da plataforma não derruba decisão registrada.** "O campo é ENUM e não aceita
+vazio", "o parâmetro deveria ser obrigatório" — o schema não está na pasta do cliente. Se a dúvida existir,
+ela vai para *o que não foi possível julgar*, como pergunta ao cliente, nunca como achado.
+
+*Motivo:* medido — com a regra só enunciada, a auditoria classificou como **Crítica** a fila em branco da
+trilha resolvida, documentada no `variaveis.md`, a partir de uma inferência sobre um schema que ela não tinha
+visto. O cliente corrigiria o que estava certo.
 
 ---
 
@@ -294,7 +305,12 @@ Ordenado do mais grave para o menos. Cada item com:
 3. **O efeito em produção** — o que o usuário ou o atendente sente
 4. **A correção proposta**
 
-Feche com o que **não** foi possível julgar por falta de critério ou de informação do cliente.
+Depois dos itens, duas seções, **ambas obrigatórias** — sem conteúdo, escreva *nenhuma*:
+
+- **Decisões deliberadas mantidas** — o que parecia defeito e tem registro de intenção, cada uma com a linha
+  do registro (Passo 4). É o que impede a próxima auditoria de reportar o mesmo item como novo.
+- **O que não foi possível julgar** — por falta de critério ou de informação do cliente, incluindo as dúvidas
+  sobre o schema da plataforma.
 
 **Não aplique nenhuma alteração até confirmação explícita.** Depois do aceite, as correções são pedidas em
 conversa — esta skill não escreve no cliente.
@@ -317,6 +333,14 @@ conversa — esta skill não escreve no cliente.
 
 ## Changelog
 
+- **3.1.0** — **Fila em branco na trilha resolvida deixou de ser reportada como defeito.** O critério "toda
+  demanda tem destino" tratava "trilha sem fila" como violação sem exceção, contradizendo as skills de
+  criação, em que a trilha de informação resolvida executa o transbordo com a fila em branco por desenho. A
+  regra de decisão deliberada, só enunciada, não vencia o critério explícito: medido na suíte de evals, o
+  auditor classificou essa fila como Crítica em 4 de 6 execuções, com base numa inferência sobre o schema da
+  plataforma. Agora o critério traz a exceção, a regra de decisão deliberada diz onde procurar o registro de
+  intenção, inferência sobre schema vai para "o que não foi possível julgar", e o plano ganha a seção
+  obrigatória *Decisões deliberadas mantidas*.
 - **3.0.0** — **Corrigido o contrato do runtime, e com ele sete critérios.** A §2 do manual é sempre-ativa —
   é o campo `Condições de Execução` da plataforma —, e não documentação como as skills afirmavam. Entram a
   tabela do contrato do runtime e a declaração do modelo alvo, que a auditoria não tinha: ela julgava sem
