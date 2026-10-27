@@ -1,12 +1,15 @@
 ---
-max_turns: 30
-allowed_tools: [Read, Glob, Grep, Bash, Skill]
+model: claude-opus-5-5
+max_turns: 60
+timeout_seconds: 1200
+allowed_tools: [Read, Glob, Grep]
 runs: 3
 tags: [auditoria]
 ---
 
-Audite o agente virtual do cliente `ClinicaAurora`, cuja pasta está em
-`evals/auditoria-fixture/fixture/ClinicaAurora`. Use a skill `agv-auditoria` se ela estiver disponível.
+/agent-builder:agv-auditoria ClinicaAurora
+
+A pasta do cliente está em `ClinicaAurora/`, no diretório de trabalho.
 
 Leia todos os arquivos de `config/`, `ferramentas/manuais/` e `ferramentas/dados/` e entregue o plano de
 correção: ordenado do mais grave para o menos, cada item com o defeito em uma frase, o arquivo e a linha
