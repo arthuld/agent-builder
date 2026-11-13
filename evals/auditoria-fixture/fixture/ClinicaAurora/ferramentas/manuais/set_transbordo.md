@@ -11,7 +11,7 @@ FUNÇÃO: set_transbordo
 # QUANDO EXECUTAR
 - Ao final de toda trilha, sem exceção. Executar é ação, não mensagem.
 # PARÂMETROS
-- nome, cpf, convenio, protocolo, motivo, fila, resolvido.
+- nome, cpf, telefone, convenio, protocolo, motivo, fila, resolvido.
 - Só resolvido é required.
 # FILAS
 - Exame -> agendamento | Resultado -> resultados | não reconhecido -> atendimento_geral

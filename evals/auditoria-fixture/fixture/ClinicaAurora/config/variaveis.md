@@ -11,6 +11,7 @@
 | --- | --- | --- | --- |
 | `IA_PACIENTE_NOME` | Nome completo | Obrigatório nas trilhas A e C. Texto livre. | `set_transbordo` -> `nome` |
 | `IA_PACIENTE_CPF` | CPF do paciente | Obrigatório na trilha A. 11 dígitos. | `set_transbordo` -> `cpf` |
+| `IA_PACIENTE_TELEFONE` | Telefone com DDD | Obrigatório na trilha A. 10 ou 11 dígitos. | `set_transbordo` -> `telefone` |
 | `IA_CONVENIO_NOME` | Convênio do paciente | Obrigatório na trilha A. Validar com get_convenios. | `get_convenios` -> `convenio` |
 | `IA_PROTOCOLO` | Protocolo do pedido | Obrigatório na trilha C. Texto livre. | `get_resultados` -> `identificador` |
 | `IA_MOTIVO_CONTATO` | Classifica a demanda | Obrigatório. ENUM: Exame, Duvida, Resultado. | `set_transbordo` -> `motivo` |

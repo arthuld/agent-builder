@@ -48,7 +48,7 @@ consegue falhar. Resultado esperado:
 | `calib-din-fila-errada` | 13 | **reprova** — convênio fora da base vai para a fila errada |
 | `calib-est-certo` | 13 | aprova |
 | `calib-est-fila-errada` | 13 | **reprova** — a opção 2 vai para a fila errada |
-| `calib-aud-fraca` | 02 a 06 | **reprova os cinco** — auditoria genérica e com três falsos positivos |
+| `calib-aud-fraca` | 02 a 07 | **reprova os seis** — auditoria genérica, com três falsos positivos e sem os critérios de 11/2026 |
 
 Se um caso que devia reprovar aprovar, o critério ficou leniente e a suíte não está provando nada.
 
@@ -69,12 +69,12 @@ Resultados vão para `evals/results/`, que é gitignored.
 
 | Caso | Tag | O que prova |
 | --- | --- | --- |
-| `dinamico-completo` | `dinamico` | Briefing completo → os arquivos certos, a saudação ao pé da letra, toda trilha executa o transbordo, cada demanda na fila certa, confirmação antes de executar, mudança de demanda tratada |
+| `dinamico-completo` | `dinamico` | Briefing completo → os arquivos certos, a saudação ao pé da letra, toda trilha executa o transbordo, cada demanda na fila certa, confirmação antes de executar, mudança de demanda tratada. Critérios 20 a 25: observações citada uma vez e com teto, sem cabeçalho `FUNÇÃO:`, sem "string livre", sem variável de telefone |
 | `dinamico-sem-destino` | `dinamico` | Sem dizer onde criar a pasta, a skill para e não escreve nada |
-| `estatico-completo` | `estatico` | O mesmo, mais o que é do menu: frase literal de execução, submenu recomeçando em 1, assimetria entre trilhas irmãs mantida |
+| `estatico-completo` | `estatico` | O mesmo, mais o que é do menu: frase literal de execução, submenu recomeçando em 1, assimetria entre trilhas irmãs mantida. Critérios 20 a 25: observações citada uma vez e com teto, sem cabeçalho `FUNÇÃO:`, sem "string livre" no manual de transbordo, e `"Não coletado"` distinto de `"Não se aplica"` |
 | `estatico-sem-destino` | `estatico` | Sem destino, para e não escreve nada |
 | `clinux-sem-referencia` | `clinux` | Sem cliente Clinux de referência no disco, a skill para em vez de inventar o agente do zero |
-| `auditoria-fixture` | `auditoria` | A auditoria encontra os defeitos plantados e não reporta decisão deliberada como defeito |
+| `auditoria-fixture` | `auditoria` | A auditoria encontra os defeitos plantados e não reporta decisão deliberada como defeito. O critério 07 cobre as regras de 11/2026: telefone do contato coletado, variável de observações ausente e cabeçalho `FUNÇÃO:` na §2 |
 | `dinamico-controle` | `comparacao` | O mesmo briefing e os mesmos critérios, **sem** a skill — só a estrutura de arquivos informada. Mede o que a skill acrescenta. Não roda no dia a dia |
 | `calib-*` | `calibracao` | Prova que os critérios reprovam o que está errado |
 

@@ -8,11 +8,13 @@
                     [
                         "Nome Completo",
                         "CPF",
+                        "Telefone",
                         "Convênio"
                     ],
                     [
                         "__IA_PACIENTE_NOME__",
                         "__IA_PACIENTE_CPF__",
+                        "__IA_PACIENTE_TELEFONE__",
                         "__IA_CONVENIO_NOME__"
                     ]
                 ]

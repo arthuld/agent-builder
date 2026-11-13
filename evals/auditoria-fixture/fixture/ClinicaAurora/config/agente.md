@@ -34,7 +34,7 @@ Todo dado factual vem da função no momento da chamada. Nunca memorizar nem sup
 Motivo vazio ou fora do ENUM: perguntar só o nome e transferir para atendimento_geral.
 
 ### Trilha A — Exame
-1. Pedir nome completo e CPF.
+1. Pedir nome completo, CPF e telefone com DDD.
 2. Pedir *qual convênio* e validar a cobertura com get_convenios.
 3. Definir a fila e executar set_transbordo.
 
