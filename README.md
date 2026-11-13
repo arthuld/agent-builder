@@ -275,14 +275,43 @@ execução criou a pasta na mesma altura sem perguntar, e não abriu a configura
 
 ### O que ainda falta
 
+Conferido em 13/11/2026. Os itens estão na ordem em que faz sentido resolvê-los.
+
+**Abertos pela rodada de testes de 11/11**
+
 | Item | Situação |
 |---|---|
-| **Suíte de evals** | Existe em `evals/` (ver `evals/README.md`): dinâmica, estática, clinux (só negativo) e auditoria, com calibração. Pendente: estabilizar o critério de fluxo da dinâmica e definir o `--threshold` |
-| **GREEN de `/agv-fix`** | A skill entrou na v2.1.0 sem passar por RED/GREEN com controle. É a única do conjunto sem validação medida |
-| **`/agv-novo-animati`** | Não existe. Integração animati-netpacs |
-| **Variância dos GREEN de relatório** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. As mudanças são estruturais, aparecem ou não, mas a variância nunca foi medida |
-| **LICENSE** | O manifesto declara `UNLICENSED` e não há arquivo. Irrelevante enquanto o repositório for privado |
-| **Instalação no Antigravity ponta a ponta** | O `agy` está instalado e os subcomandos foram conferidos no binário. O que não foi feito é instalar **este** repositório por ali e abrir uma sessão para confirmar que as oito skills aparecem, como foi feito no opencode (`opencode debug skill`: 7 de 7) |
+| **Falso positivo da auditoria** | Na v3.2.0, o juiz marcou falso positivo sobre a fila em branco em 2 de 3 execuções. A v3.1.0 passava nesse ponto em 2 de 2. Falta ler as respostas e decidir se o problema é da skill ou do critério |
+| **Dinâmica sem comparação** | A dinâmica 2.1.0 rodou sem braço de controle. O critério de telefone foi corrigido e ainda não rodou de novo |
+| **Dois critérios fracos** | "Observações citada uma vez" e "sem string livre" passam também na versão anterior das skills, então não provam nada sozinhos |
+
+**Suíte de testes**
+
+| Item | Situação |
+|---|---|
+| **Limiar e custo da suíte** | A suíte existe em `evals/` e o critério de fluxo da dinâmica passou nas duas execuções de 11/11. Ainda falta a rodada completa para preencher "Custo e variação" e fixar o `--threshold` |
+| **Clinux só com o caso negativo** | O caso completo precisa de um cliente Clinux inventado como referência, e o único que existe é real |
+| **Teste da `/agv-fix`** | É a única skill do conjunto sem nenhum teste com controle |
+| **Variação dos relatórios** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. Não há caso deles na suíte |
+
+**Melhorias nas skills, do relatório de auditoria de 11/11**
+
+| Item | Situação |
+|---|---|
+| **Verificador único** | Hoje criação, auditoria e fix têm três listas de checagem diferentes. A ideia é um script só, chamado pelas três, com a medição de tokens junto |
+| **Cópias que divergem** | Modelo alvo, contrato do runtime e estados de ausência existem em várias skills e já divergiram. Falta um teste que falhe quando as cópias ficarem diferentes |
+| **Teto de tamanho do agente** | As skills medem o agente gerado mas não param quando ele passa do ponto. Já saiu um agente de 18 mil tokens e 12 funções |
+| **Travas por função no Clinux** | Proposta: os dados obrigatórios de cada função ficam no cadastro dela e na primeira linha das Condições de Execução. Aguardando confirmação |
+
+**Depende de algo de fora**
+
+| Item | Situação |
+|---|---|
+| **Teste no modelo real** | Toda validação hoje mede se o Claude segue a skill, não como o `gpt-5.4-nano` se comporta com o agente gerado. Precisa de uma chave da API da OpenAI |
+| **Troca para o `gpt-6-luna`** | O `gpt-5.4-nano` sai da API em 01/04/2027. A troca depende do teste no modelo real e de o Luna estar disponível na plataforma |
+| **`/agv-novo-animati`** | Ainda não existe. Depende do material da integração animati-netpacs |
+| **Instalação no Antigravity** | Os comandos do `agy` foram conferidos, mas este plugin nunca foi instalado por ele para ver as oito skills aparecerem |
+| **LICENSE** | O manifesto diz `UNLICENSED` e não há arquivo. Só importa se o repositório deixar de ser privado |
 
 ---
 
