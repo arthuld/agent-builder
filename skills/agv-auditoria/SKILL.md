@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 metadata:
-  version: "3.1.0"
+  version: "3.2.0"
 ---
 
 # Auditar Agente Virtual
@@ -37,8 +37,9 @@ o achado não é acionável e vira discussão.
 
 ## O modelo alvo
 
-Os agentes auditados aqui rodam em **`gpt-5.4-nano`**, com `reasoning_effort` em `none`. É a mesma premissa
-sob a qual as skills de criação escrevem, e ela muda o que conta como defeito:
+Os agentes auditados aqui rodam em **`gpt-5.4-nano`**. A plataforma não expõe `reasoning_effort`: vale o
+default do modelo, que no nano é `none`. É a mesma premissa sob a qual as skills de criação escrevem, e ela
+muda o que conta como defeito:
 
 - **Borda não escrita é comportamento inventado.** Modelo pequeno não infere o passo que falta — improvisa.
   Uma borda implícita num agente frontier é folga; aqui é bug.
@@ -49,6 +50,10 @@ sob a qual as skills de criação escrevem, e ela muda o que conta como defeito:
   fechar uma borda.
 
 **Se o modelo mudar, revise esta seção antes de aplicar critério nenhum.**
+
+**Prazo:** o `gpt-5.4-nano` sai da API em 01/04/2027, e o substituto indicado é o `gpt-6-luna`, cujo
+default de `reasoning_effort` é `medium`. A premissa de `none` não se transfere sozinha: confirme-a no
+modelo novo antes de reaproveitar estas escolhas.
 
 ## O contrato do runtime — o que chega ao modelo
 
@@ -88,11 +93,14 @@ Há dois tipos de agente neste workspace, e **metade dos critérios abaixo só v
 critérios errados produz ruído de alta gravidade num relatório que se vende por acionabilidade.
 
 ```bash
+cd "<pasta do cliente>"   # todos os comandos desta skill rodam a partir dela
+
 # Categoria: a presença da base estática é o sinal primário
 ls ferramentas/dados/*.json 2>/dev/null | wc -l     # 0 => Integrado, >0 => Base de conhecimento
 
-# confirmação pelo nome das variáveis
-grep -oE '__[A-Z0-9_]+__' config/variaveis.md | head -3   # casou => Base de conhecimento
+# confirmação pela coluna Variável do dicionário: só Base de conhecimento nomeia com IA_.
+# Não procure `__X__` solto: num agente Integrado os underscores são sintaxe de interpolação e também casam.
+grep -oE '^\| `_{0,2}IA_[A-Z0-9_]+' config/variaveis.md | head -3   # casou => Base de conhecimento
 ```
 
 **Contar seções do manual não distingue mais as categorias** — as duas têm 2 seções, `Objetivo da Função` e
@@ -106,7 +114,7 @@ sob a convenção anterior: reportar como achado de migração, não como sinal 
 | Nome de variável | `__IA_CAMPO__` | **nome do parâmetro do endpoint** (`EMPRESA_ID`, `CPF_DIGITADO`) |
 | Sentinelas de ausência | três estados obrigatórios | **proibidas** em campo obrigatório — retém a chamada e pergunta |
 | Fim do caminho feliz | transbordo | **gravação no sistema** |
-| Retorno vazio | pode indicar ausência na base | **nunca** indica ausência — só a lista de exclusão autoriza negar |
+| Retorno vazio | **não** autoriza negar, salvo base que o cliente declarou autoritativa | **nunca** indica ausência — só a lista de exclusão autoriza negar |
 
 **Declare a categoria detectada no início do relatório.** Onde um critério estiver marcado *(só Base de
 conhecimento)* abaixo, **não o aplique** a um agente Integrado — e vice-versa. Na dúvida sobre a categoria,
@@ -153,14 +161,17 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | Variável e card batem | Token em `variaveis.md` ausente do `clienteinfo.json`, ou o inverso — chega vazia ao atendente |
 | Arrays do card pareados | Rótulos e tokens com tamanhos diferentes no mesmo bloco — desalinha em silêncio |
 | Grafia de fila consistente | Mesma fila escrita diferente entre `agente.md`, `variaveis.md` e o manual de transbordo. **Comparar entre os arquivos do cliente**, nunca contra uma lista padrão — o cliente pode ter filas próprias |
-| Sentinela declarada no `enum` | Campo com `enum`/`pattern`/`format` recebendo `"Não coletado"` — a chamada é descartada **em silêncio**. A correção é acrescentar a sentinela ao `enum`, **não** trocar o campo por string livre: num agente que roda em modelo pequeno, o enum é a única restrição estrutural disponível. Schema afrouxado para acomodar sentinela é defeito |
+| Sentinela declarada no `enum` | Campo com `enum`/`pattern`/`format` recebendo uma das três sentinelas sem tê-la na lista — a chamada é descartada **em silêncio**. A correção é acrescentar a sentinela ao `enum`, **não** trocar o campo por string livre: num agente que roda em modelo pequeno, o enum é a única restrição estrutural disponível. Schema afrouxado para acomodar sentinela é defeito |
+| Conjunto finito declarado como `enum` | Campo de valores finitos — motivo, modalidade, unidade, fila — descrito em prosa na Regra de Validação, sem ENUM. O formulário de função da plataforma aceita `enum`; campo fechado deixado como texto livre devolve ao modelo a decisão que o schema podia tomar |
 | Só o universal é `required` | Campo que trilhas sem coleta não preenchem marcado como obrigatório |
 | *(só Base de conhecimento)* Função anunciada existe na base | Prompt cita serviço, exame ou item que o `get_*` não retorna |
-| *(só Integrado)* Toda negativa está ancorada | "Não realiza X" sem lista de exclusão explícita. Retorno vazio **não** autoriza negar: significa "não veio", não "não existe" |
+| Toda negativa está ancorada | "Não realiza X" sem lista de exclusão explícita. Retorno vazio **não** autoriza negar: significa "não veio", não "não existe". Vale nas duas categorias. **Não é violação** em Base de conhecimento quando houver registro de que o cliente declarou a base como lista autoritativa para negar — é decisão deliberada (Passo 4) |
 | Tolerância fuzzy limitada à mesma entidade | Aproximação entre entidades diferentes (Tomografia/Angiotomografia). Em dúvida, falhar fechado |
 | *(só Base de conhecimento)* Sem valor ambíguo nos dados | `[]` onde o sentido é "todos" — é lido como "nenhum". Sentinela explícita (`["Todos"]`) |
 | Sem curinga que anula proibição | Item tipo `"Outros"` que autoriza afirmar disponibilidade do que o prompt proíbe |
 | Todo dado coletado tem consumidor | Passo de coleta cujo dado não vira parâmetro de função nem campo do card. Separar **orientação geral** ("quais são os canais") de **consulta individual** ("qual é o meu resultado"): a primeira não precisa de identificador. Pedir documento para uma função que devolve o mesmo texto para todo mundo faz a função parecer uma consulta autenticada que ela não é |
+| Telefone do contato não é coletado | Passo de coleta ou variável para o telefone de quem está na conversa. A plataforma já o entrega em `__CONTATO__`. **Não é violação:** telefone de terceiro ou de responsável, quando for regra de negócio registrada |
+| *(só Base de conhecimento)* Variável de observações definida uma vez | `__IA_OBSERVACOES__` ausente; **ou** alimentada em mais de um ponto do prompt; **ou** sem teto de tamanho; **ou** sem a restrição ao que o usuário disse ou a função retornou. É o campo que o atendente lê primeiro, e resumo livre é onde modelo pequeno inventa. Menção espalhada é custo: medido, 92 tokens por turno |
 
 ### Segurança
 
@@ -196,6 +207,7 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 | *(só Base de conhecimento)* Um assunto, um arquivo dono | Mesmo fato em dois JSONs de dados |
 | Descrição de função ≤ 950 caracteres | §1 acima do teto — é pago em 100% dos turnos. A §2 **não** tem teto duro, mas entra na medição do sempre-ativo |
 | Manual com exatamente 2 seções, nomeadas pelos campos | `## 1. Objetivo da Função` · `## 2. Condições de Execução`, nas duas categorias. Seção a mais — tipicamente "Exemplos Práticos de Diálogos" ou "Tool Specification"/JSON Schema — não tem campo onde ser colada. Rótulo antigo é achado de migração |
+| Sem cabeçalho `FUNÇÃO: nome` na §2 | Linha `FUNÇÃO: nome_da_funcao`, com ou sem moldura de `====`, no topo das Condições de Execução. A plataforma já sabe de qual função o campo é, e o cabeçalho é pago em todo turno, uma vez por função — medido, de 25 a 154 tokens por turno por agente |
 | Prompt com exatamente 4 seções `##` | Quinta seção — a tela da plataforma tem quatro campos, e a quinta não tem onde ser colada |
 | Sem caminho de arquivo no prompt | `config/agente.md`, `§2` ou nome de pasta citados no conteúdo que vira prompt |
 | Markdown estrutura o prompt, nunca XML | Tags XML (`<perfil>`, `<etapa>`, `<regras>`, `<item>`) estruturando `config/agente.md` ou o bloco de diretrizes de um manual. Medido nos agentes existentes: trocar os headers markdown por tags custa **+217 tokens por turno por agente** (+5% do campo), sem ganho documentado — e o que o XML delimitaria, a plataforma já delimita, porque os 4 campos são entradas separadas. A documentação do modelo não prescreve formato; os blocos XML dos exemplos dela são orquestração multi-etapa de modelo frontier, não este caso |
@@ -215,6 +227,9 @@ for f in ferramentas/manuais/*.md; do echo "$(grep -c '^## ' "$f") $f"; done
 
 # rótulo antigo de seção — achado de migração, não de categoria
 grep -rln 'Descrição da Função\|Diretrizes de Prompt\|Exemplos Práticos' ferramentas/manuais/
+
+# cabeçalho FUNÇÃO: no topo da §2 — as duas categorias (qualquer acerto é violação)
+grep -n 'FUNÇÃO:' ferramentas/manuais/*.md
 
 # seção de schema que não deveria existir — as duas categorias
 grep -rl 'Tool Specification' ferramentas/manuais/
@@ -243,11 +258,17 @@ grep -nE '</?[a-zA-Z_][a-zA-Z0-9_-]*>' config/agente.md ferramentas/manuais/*.md
 # valor ambíguo nos dados — SÓ Base de conhecimento
 [ -d ferramentas/dados ] && grep -n '\[\]\|null' ferramentas/dados/*.json
 
+# variável de observações definida em um único ponto — SÓ Base de conhecimento (esperado: 1)
+grep -c 'IA_OBSERVACOES' config/agente.md
+
+# coleta do telefone do contato — as duas categorias (a plataforma já o entrega em __CONTATO__)
+grep -niE 'telefone|celular' config/agente.md config/variaveis.md
+
 # card é JSON válido — as duas categorias
 python -c "import json;json.load(open('config/clienteinfo.json',encoding='utf-8'))"
 
-# toda negativa do prompt está ancorada — SÓ Integrado
-# (num agente Integrado, "não realiza" só pode vir de lista de exclusão explícita)
+# toda negativa do prompt está ancorada — as duas categorias
+# ("não realiza" só pode vir de lista de exclusão explícita, ou de base que o cliente declarou autoritativa)
 grep -nE 'não realiza|não atende|não oferece' config/agente.md
 ```
 
@@ -330,35 +351,3 @@ conversa — esta skill não escreve no cliente.
 | Medir o sempre-ativo sem as §2 | As duas seções do manual são campos da plataforma. Fora da conta, o custo do agente sai subestimado |
 | Achado sem efeito em produção | "Viola a convenção" não move ninguém; "o atendente recebe vazio" move |
 | Aplicar a correção | Esta skill propõe. A aplicação é pedida depois |
-
-## Changelog
-
-- **3.1.0** — **Fila em branco na trilha resolvida deixou de ser reportada como defeito.** O critério "toda
-  demanda tem destino" tratava "trilha sem fila" como violação sem exceção, contradizendo as skills de
-  criação, em que a trilha de informação resolvida executa o transbordo com a fila em branco por desenho. A
-  regra de decisão deliberada, só enunciada, não vencia o critério explícito: medido na suíte de evals, o
-  auditor classificou essa fila como Crítica em 4 de 6 execuções, com base numa inferência sobre o schema da
-  plataforma. Agora o critério traz a exceção, a regra de decisão deliberada diz onde procurar o registro de
-  intenção, inferência sobre schema vai para "o que não foi possível julgar", e o plano ganha a seção
-  obrigatória *Decisões deliberadas mantidas*.
-- **3.0.0** — **Corrigido o contrato do runtime, e com ele sete critérios.** A §2 do manual é sempre-ativa —
-  é o campo `Condições de Execução` da plataforma —, e não documentação como as skills afirmavam. Entram a
-  tabela do contrato do runtime e a declaração do modelo alvo, que a auditoria não tinha: ela julgava sem
-  saber para qual modelo o prompt fora escrito, a mesma lacuna que a 2.2.0 fechou para o formato XML.
-  **Dois critérios foram invertidos:** pedir confirmação dos dados antes de executar era classificado como
-  defeito e é o comportamento correto — o defeito real, preservado, é confirmar *depois* da execução ou
-  pedir uma segunda confirmação; e "exemplo de diálogo é few-shot e vence a regra" saiu, porque exemplo de
-  manual nunca chegou ao modelo e a seção de exemplos deixou de existir. **Um critério foi removido:** o
-  mascaramento de documento, que o cliente descontinuou. Entram critérios para despedida escrita no prompt,
-  blocos de perguntas relacionadas com meta de interações, mudança de demanda, modalidade de pagamento,
-  coleta sem consumidor, e a conta de fusão de funções com os dois lados. A contagem de seções deixou de
-  distinguir as categorias — as duas têm 2 — e virou achado de migração.
-- **2.2.0** — Critério de formato de prompt: markdown estrutura, nunca XML. A regra e a medição (+217 tokens por turno por agente) já existiam nas skills de criação desde a adequação ao gpt-5.4-nano, mas não haviam chegado à auditoria — um agente podia ser criado sob a regra e auditado sem ela. Baseline com 3 repetições sobre um cliente-fixture cujo prompt inteiro era XML: **0 de 3** apontaram o formato, e **3 de 3** acharam o defeito-controle plantado na mesma seção, provando que auditaram e que a lacuna era de critério, não de atenção.
-- **2.1.0** — Passo 0: determinar a categoria do agente antes de aplicar critério. Metade dos critérios só vale para agentes com base de conhecimento, e aplicá-los a um agente integrado produzia ruído de alta gravidade. Corrigido um **falso negativo silencioso**: a checagem de variável ausente do card ancorava o regex em `IA_`, e num agente integrado — onde as variáveis são nomes de parâmetro de endpoint — os dois lados voltavam vazios e a verificação passava sem ter verificado nada. Critério de sentinela alinhado à R21 do modelo estático.
-- **2.0.0** — Autocontida e estruturada. Antes eram 934 palavras de prosa com **dois cabeçalhos** e 15 regras
-  citadas por número de um documento externo. Numa medição com esse documento fora de alcance, a skill ainda
-  achou 22 defeitos — porque trazia glosa inline —, mas em 5 regras a glosa era insuficiente e o auditor
-  **observou sem julgar**: *"sei que exige mascaramento de CPF, não sei o formato"*. Agora cada verificação
-  traz o critério de violação junto, as cinco dimensões viraram tabelas, e o Passo 3 acrescenta as
-  verificações mecânicas que pegaram defeito real.
-- **1.0.0** — Versão inicial.
