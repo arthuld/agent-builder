@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Criar Agente Virtual Estático (Fluxo por Menu)
@@ -23,8 +23,8 @@ repositório, nem a configuração de outro cliente. Se houver convenções exte
 
 ## O modelo alvo
 
-O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
-plataforma não expõe. Quatro consequências valem para tudo que vem abaixo:
+O agente gerado roda em **`gpt-5.4-nano`**. A plataforma não expõe `reasoning_effort`: vale o default do
+modelo, que no nano é `none`. Quatro consequências valem para tudo que vem abaixo:
 
 - **Saída fechada sempre que couber.** Enum no schema (R21), template literal (R15), tabela de decisão.
   Modelo pequeno erra menos escolhendo de uma lista do que redigindo livremente.
@@ -50,6 +50,10 @@ escolha entre resolver por estado ou por tabela, escolha a tabela.
 Medição de token: `tiktoken`, encoding `o200k_base`.
 
 **Se o modelo mudar, revise esta seção antes de tudo.**
+
+**Prazo:** o `gpt-5.4-nano` sai da API em 01/04/2027, e o substituto indicado é o `gpt-6-luna`, cujo
+default de `reasoning_effort` é `medium`. A premissa de `none` não se transfere sozinha: confirme-a no
+modelo novo antes de reaproveitar estas escolhas.
 
 ## O contrato do runtime
 
@@ -119,6 +123,7 @@ obriga a perguntar antes de prosseguir**.
 
 ```
 FICHA DE PARÂMETROS — <cliente>
+  destino.pasta ....................
   cliente.grafia_comercial .........
   cliente.dominio ..................
   agente.nome ......................
@@ -141,6 +146,7 @@ FICHA DE PARÂMETROS — <cliente>
   fluxo.confirma_antes_executar .... Sim
   fluxo.meta_interacoes ............ 5 a 7 mensagens do agente
   default.teto_lista ............... 5
+  default.observacoes_teto ......... 300 caracteres
 ```
 
 **Havendo qualquer `[PERGUNTAR]`, a próxima ação é perguntar ao usuário** — todas as perguntas em um bloco
@@ -202,6 +208,7 @@ Os dois desenhos existem. Deduzir errado quebra em silêncio: o atendimento não
 | Meta de interações até finalizar ou transferir | 5 a 7 mensagens do agente |
 | Modalidade fora de convênio (particular) | Disponível — assumir que sim e confirmar no relatório |
 | Teto de itens por lista | 5 |
+| Tamanho da variável de observações | até 300 caracteres |
 | Formato de data | `DD/MM/AAAA` |
 | Delimitador de variável | `__NOME_DA_VARIAVEL__` |
 
@@ -236,19 +243,39 @@ vira decisão do modelo em runtime.
 transbordo. Proibido acionar transbordo com fila em branco quando existe atendente de destino.
 *Motivo:* transbordo sem fila cai em lugar nenhum, e o usuário fica esperando.
 
-**R5 — Não declare variável de observações livres.** Sinais sem campo dedicado — demanda fora do escopo,
-tentativas esgotadas, opção não reconhecida, convênio sem cobertura — já chegam ao atendente pelo **otto
-resumo**, função predefinida da plataforma.
-*Motivo:* reimplementar capacidade nativa paga token em todo turno, porque cada ponto do prompt que alimenta
-a variável é sempre-ativo.
+**R5 — Uma variável de observações, breve, definida uma única vez.** Todo agente declara
+`__IA_OBSERVACOES__`: o informativo que o atendente humano lê para continuar o atendimento. O prompt a
+define em **um** lugar — junto da instrução de execução do transbordo — com esta formulação:
+
+> Antes de executar o transbordo, preencher `__IA_OBSERVACOES__` em até [teto] caracteres: a demanda, o que
+> ficou pendente ou foi recusado, e o que o atendente precisa saber para continuar. Só o que o usuário disse
+> ou o que uma função retornou.
+
+Nenhum outro ponto do prompt cita o token: os sinais de borda — fora do escopo, falha de triagem, item não
+oferecido, tentativas esgotadas — entram nela **por esta regra**, não por uma menção em cada trilha.
+*Motivo:* é o campo que o atendente lê primeiro, e resumo livre é onde modelo pequeno inventa — daí o teto
+de tamanho e a restrição ao que foi dito ou retornado. Definir uma vez é o que a mantém barata: medido num
+agente, a mesma variável alimentada em vários pontos do prompt custava 92 tokens por turno.
+Capacidade que o modelo já tem continua não virando função: não existe função de leitura de carteirinha,
+porque ele já lê imagem.
+
+**R5a — O telefone do contato já vem da plataforma.** A variável `__CONTATO__` traz o número de quem está
+na conversa. Nenhum passo pergunta telefone. Ela é da plataforma, não do agente, e por isso não segue o
+padrão `__IA_CAMPO__`; se o prompt ou o card a usarem, ela consta do dicionário marcada como variável da
+plataforma. Outro telefone — de um terceiro, de um responsável — só se coleta quando for regra de negócio
+informada pelo cliente, e aí é variável própria.
+*Motivo:* pedir um dado que a plataforma já tem gasta uma mensagem do atendimento e abre um campo a mais
+para o usuário errar.
 
 **R6 — Três estados de ausência, nunca o mesmo texto.**
 - `"Não Informado"` — o usuário **recusou explicitamente** um dado já perguntado.
-- `"Não coletado"` — a trilha **não pergunta** esse dado.
-- `"Não se aplica"` — o bloco da trilha em curso deliberadamente não pede.
+- `"Não coletado"` — o transbordo foi acionado **antes** de o dado ter sido perguntado: tentativas
+  esgotadas, opção não reconhecida, fallback.
+- `"Não se aplica"` — o bloco da trilha em curso **deliberadamente não pede** esse dado.
 
-*Motivo:* num fluxo estático a maioria das trilhas não coleta a maioria dos campos, então este é o caso
-comum, não a exceção. O atendente age diferente em cada um.
+*Motivo:* num fluxo estático a maioria das trilhas não coleta a maioria dos campos, então `"Não se aplica"`
+é o caso comum, não a exceção. O atendente age diferente em cada um: `"Não coletado"` é dado que ele ainda
+precisa pedir; `"Não se aplica"` é dado que ninguém deve pedir.
 
 **R7 — Variável de trilha.** Declare uma variável que registre qual opção o usuário percorreu (código +
 rótulo). É o que permite medir o menu depois.
@@ -373,6 +400,8 @@ relatório sem gatilho: o atendimento nunca é entregue.
 
 **R17 — Falta de dado não bloqueia a execução.** O que a trilha não coleta vai como sentinela (R6). Fila
 indefinida nunca justifica não transferir — o fallback resolve.
+*Escopo:* vale para a função de **transbordo**. Função de consulta é o caso oposto (R24): faltando o
+parâmetro, a chamada fica retida até o usuário informar.
 
 **R18 — Trilha com coleta confirma e executa; trilha sem coleta executa direto.** Com
 `fluxo.confirma_antes_executar = Sim` (default), a trilha que coletou dados lê de volta o que coletou, pede
@@ -397,14 +426,14 @@ transferir sem X"*, *"proibido sem Y"*) faz o modelo ler a transferência como a
 ## Funções e schema
 
 **R21 — A sentinela entra no `enum`; não se afrouxa o schema para caber nela.** Se o parâmetro declara
-`enum`, `pattern` ou `format` e o agente manda `"Não coletado"`, a chamada **viola o schema e é descartada
+`enum`, `pattern` ou `format` e o agente manda uma sentinela que não está na lista, a chamada **viola o schema e é descartada
 em silêncio** — o sintoma é *"o agente chega na função e não faz nada"*.
 
 A saída é **declarar as sentinelas como valores válidos**, não remover a restrição:
 
 ```json
 "pedido_medico": { "type": "string",
-                   "enum": ["Sim", "Não", "Não Informado", "Não coletado"] }
+                   "enum": ["Sim", "Não", "Não Informado", "Não coletado", "Não se aplica"] }
 ```
 
 Só os campos realmente universais da árvore podem ser `required`. Os condicionais continuam opcionais — mas
@@ -416,9 +445,8 @@ qualquer coisa. Num agente que roda em modelo pequeno, o enum é a única restri
 a plataforma não expõe `allowed_tools`, `reasoning_effort` nem modo strict. Desarmá-lo é abrir mão do
 último controle que não depende de o modelo obedecer.
 
-*Se o formulário de função não aceitar `enum`:* aí sim o campo é string livre, e a compensação vai para o
-prompt — a lista de valores válidos escrita literalmente no bloco da trilha, com a sentinela incluída.
-Registre essa limitação no relatório final; ela muda o que se pode esperar do agente.
+O formulário de função da plataforma **aceita `enum`** — confirmado. Não existe caso em que um campo de
+valores finitos precise ser string livre.
 
 **R22 — Distinguir argumento de função e variável de contexto.** Instruir o agente a preencher um argumento
 que não existe no schema é outra causa de chamada descartada. Se não estiver claro, **pergunte** — não
@@ -432,6 +460,9 @@ saudação, sem "esta função serve para". Duas coisas: o que ela faz e em qual
 e pergunta. Nunca supor documento, convênio ou qualquer parâmetro não informado.
 *Motivo:* parâmetro inventado retorna dado de outra pessoa ou vazio, e os dois viram resposta errada com
 cara de certa.
+*Escopo:* vale para função de **consulta**. O transbordo nunca fica retido por falta de dado (R17). No
+prompt gerado, escreva as duas regras com o escopo dito — "função de consulta" numa, "transbordo" na
+outra —, nunca como dois absolutos.
 
 **R24a — Só colete dado que tem finalidade na trilha em curso.** Todo campo de um bloco de coleta precisa
 de um consumidor nomeado: um parâmetro da função, ou um campo que o atendente recebe no card. Sem
@@ -470,10 +501,16 @@ do cliente. Sem `null`, sem chave vazia, sem metadado que não serve ao atendime
 tipados, não encapsulados em string. Indentado e legível — **não minificar**, a plataforma já minifica no
 envio e estes arquivos são revisados por humanos.
 
-**R27a1 — Menos funções é mais barato que arquivos menores.** O sempre-ativo paga a **descrição** de cada
-função em todo turno; o **arquivo** que ela retorna, não. Funda o que é sempre chamado no mesmo trecho do
-fluxo numa função só, e mantenha separada apenas a que é raramente acionada. Partir um arquivo grande em
-duas funções piora o custo, porque paga mais uma descrição em todo turno.
+**R27a1 — Número de funções: a conta tem dois lados.** O sempre-ativo paga **§1 + §2 + schema** de cada
+função em todo turno; o **arquivo** que ela retorna, só no turno da chamada.
+
+- **Fundir economiza** uma §1 + §2 + schema por turno, em todos os turnos da conversa.
+- **Fundir custa** carregar o JSON da outra função em toda chamada isolada. A plataforma devolve o
+  **arquivo cheio** — não há filtro por parâmetro.
+
+Regra prática: **funda** quando as duas forem quase sempre acionadas juntas **e** a menor for pequena;
+**mantenha separada** quando uma for raramente acionada (carga preguiçosa) **ou** quando as duas bases
+forem grandes. Partir um arquivo grande em duas funções piora os dois lados.
 *Motivo:* a intuição puxa para o lado errado — enxugar JSON parece economia e quase não é; cortar uma função
 é economia permanente.
 
@@ -527,9 +564,10 @@ campo da plataforma.
 *Motivo:* o usuário e o modelo não têm "arquivos" como referência, e citar estrutura interna vaza processo
 interno numa conversa com o público.
 
-**R35 — Consciência de custo.** O prompt principal mais as descrições de função são pagos em **todos** os
-turnos. Nasce enxuto: sem dado que a função retorna, sem prosa de justificativa, sem regra escrita duas
-vezes.
+**R35 — Consciência de custo.** O bloco sempre-ativo é pago em **todos** os turnos: as 4 seções do prompt,
+mais **§1 + §2 + schema de cada função**. Nasce enxuto: sem dado que a função retorna, sem prosa de
+justificativa, sem regra escrita duas vezes. Quando precisar cortar, corte redundância e verbosidade, nunca
+regra.
 
 **R36 — Quatro campos, quatro seções.** A tela da plataforma tem quatro campos separados — Perfil,
 Diretrizes de Atendimento, Regras de Conduta, Regras de Segurança — e o prompt é colado **campo a campo**.
@@ -665,7 +703,7 @@ Escolha uma opção digitando o número:
 **Blocos de coleta** — nomeados, definidos uma vez e reutilizados pelas trilhas:
 
 ```markdown
-**Bloco DadosPessoais** — nome completo · telefone · data de nascimento
+**Bloco DadosPessoais** — nome completo · data de nascimento
 **Bloco Modalidade** — convênio ou particular; vem **antes** do Bloco Convenio (R13a)
 **Bloco Convenio** — nome do convênio; só quando a modalidade for convênio
 ```
@@ -693,8 +731,9 @@ Duas notas em blockquote, depois a tabela de **exatamente quatro colunas**. Nest
 > **Nota sobre valores de ausência.** Três situações distintas deixam uma variável sem dado real, e **nunca**
 > podem usar o mesmo texto:
 > - `"Não Informado"` — o usuário **recusou explicitamente** um dado já perguntado.
-> - `"Não coletado"` — a trilha **não pergunta** esse dado.
-> - `"Não se aplica"` — o bloco da trilha em curso deliberadamente não pede.
+> - `"Não coletado"` — o transbordo foi acionado **antes** de o dado ter sido perguntado: tentativas
+>   esgotadas, opção não reconhecida, fallback.
+> - `"Não se aplica"` — o bloco da trilha em curso **deliberadamente não pede** esse dado.
 >
 > Nunca inventar valor para viabilizar a chamada da função.
 
@@ -714,6 +753,7 @@ referências cruzadas dentro das outras colunas.
 | `__IA_TRILHA__` | Código + rótulo da opção percorrida |
 | `__IA_ATENDIMENTO_FILA__` | Fila humana de destino |
 | `__IA_ATENDIMENTO_RESOLVIDO__` | Único parâmetro obrigatório em toda chamada de transbordo |
+| `__IA_OBSERVACOES__` | Informativo breve para o atendente; preenchida uma vez, antes de executar o transbordo (R5) |
 
 No rodapé, uma nota de aplicação: variáveis a cadastrar na plataforma, comportamento do nó de decisão de
 resolução, e o que muda se ele não existir.
@@ -732,15 +772,15 @@ depois, pareados por índice. Tamanhos diferentes desalinham o card em silêncio
             {
                 "titulo": "Informações do Paciente",
                 "informacoes": [
-                    ["Nome Completo", "Telefone", "Data de Nascimento"],
-                    ["__IA_PACIENTE_NOME__", "__IA_PACIENTE_TELEFONE__", "__IA_PACIENTE_DATA_NASCIMENTO__"]
+                    ["Nome Completo", "Data de Nascimento"],
+                    ["__IA_PACIENTE_NOME__", "__IA_PACIENTE_DATA_NASCIMENTO__"]
                 ]
             },
             {
                 "titulo": "Resumo do Atendimento",
                 "informacoes": [
-                    ["Trilha", "Resolvido", "Fila"],
-                    ["__IA_TRILHA__", "__IA_ATENDIMENTO_RESOLVIDO__", "__IA_ATENDIMENTO_FILA__"]
+                    ["Trilha", "Resolvido", "Fila", "Observações"],
+                    ["__IA_TRILHA__", "__IA_ATENDIMENTO_RESOLVIDO__", "__IA_ATENDIMENTO_FILA__", "__IA_OBSERVACOES__"]
                 ]
             }
         ]
@@ -764,9 +804,6 @@ compatibilidade de sentinela com o schema (R21)**.
 ## 2. Condições de Execução
 
 ```markdown
-================================================================
-FUNÇÃO: nome_da_funcao
-================================================================
 # QUANDO EXECUTAR
 - Ao final de toda trilha, sem exceção. Executar é ação, não mensagem.
 
@@ -774,10 +811,13 @@ FUNÇÃO: nome_da_funcao
 - [param]: [origem, obrigatoriedade, sentinela aceita]
 
 # COMPATIBILIDADE DE SCHEMA
-- Campos condicionais são string livre, sem enum/pattern/format — a sentinela
-  "Não coletado" precisa ser um valor válido, senão a chamada é descartada em silêncio.
+- [param com enum]: valores aceitos, com as sentinelas incluídas — [lista completa].
+- [param de fila]: não aceita sentinela; sem fila definida, usar [fila de fallback].
 ```
 ````
+
+**Sem cabeçalho `FUNÇÃO: nome` no topo da §2.** A plataforma já sabe de qual função o campo é, e o
+cabeçalho é pago em todo turno, uma vez por função — medido, de 25 a 154 tokens por turno por agente.
 
 **Não existe seção de exemplos.** Não há um terceiro campo na plataforma para colá-la, e exemplo que o
 modelo não recebe não ensina nada ao agente — só cria uma segunda versão da regra, que a revisão seguinte
@@ -804,6 +844,7 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
 - **Citar caminho de pasta ou arquivo** no conteúdo do prompt (R34).
 - **Criar uma quinta seção `##`** no prompt (R36) ou uma terceira no manual (R25).
 - **Deduzir o gênero do agente** pelo nome.
+- **Perguntar o telefone do contato.** A plataforma já o tem em `__CONTATO__` (R5a).
 
 ---
 
@@ -839,6 +880,8 @@ números e booleanos tipados. Sentinela explícita onde o sentido é "todos" (R2
     o transbordo (R30)
 24. Havendo convênio ou plano no domínio, existe o Bloco Modalidade antes do Bloco Convenio (R13a)
 25. Todo campo de bloco de coleta tem consumidor nomeado: parâmetro de função ou campo do card (R24a)
+26. `__IA_OBSERVACOES__` está declarada e é definida em um único ponto do prompt, com teto de tamanho (R5)
+27. Nenhum bloco de coleta pede o telefone do contato (R5a)
 ```
 
 Meça o **bloco sempre-ativo** — as 4 seções do prompt mais **§1 + §2 + schema de cada função**. Meça o
@@ -872,38 +915,3 @@ improvisar. Vários deles aumentam o token em vez de reduzir. É deliberado.
 
 **Nunca fechar dizendo "pronto" com pendência de dado de cliente aberta.** Diga o que está pronto para colar,
 o que está pronto como documento interno, e o que não sobe até a pendência fechar.
-
----
-
-## Changelog
-
-- **3.0.0** — **Corrigido o contrato do runtime: a §2 do manual é sempre-ativa.** A R26 afirmava o
-  contrário — que §2 e §3 eram documentação fora do alcance do modelo. São dois campos da plataforma,
-  `Objetivo da Função` e `Condições de Execução`, pagos em todo turno junto com o schema; toda medição de
-  sempre-ativo feita sob a premissa antiga subestimou o custo. Daí vêm: a tabela do contrato do runtime, a
-  §3 removida, os manuais renomeados pelos campos de destino, e a R19 reduzida a duas armadilhas — a
-  terceira ("exemplo que contradiz a regra é few-shot e vence a regra") deixou de existir junto com a §3, e
-  sua premissa estava errada de todo modo, porque exemplo de manual nunca chegou ao modelo. Outras mudanças
-  de comportamento: a mensagem de transferência é da plataforma e o prompt fica proibido de escrevê-la
-  (R15); a R18 passa a **pedir** uma confirmação antes de executar, e a R19.1 protege apenas o defeito real
-  — confirmação depois da execução, ou uma segunda confirmação; perguntas passam a ser agrupadas em blocos
-  relacionados com meta de interações, por causa da cobrança por mensagem do WhatsApp (R30, que substitui a
-  regra de mascaramento — removida, porque o documento fica no histórico da plataforma e é coletado sob
-  consentimento); Bloco Modalidade antes do Bloco Convenio, com caminho particular explícito (R13a); coleta
-  só com consumidor nomeado (R24a); e reclassificação na mudança de demanda (R14e). O Passo 5 passa a
-  emitir a matriz de homologação.
-- **2.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
-  prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Medido: trocar
-  os headers por tags XML custaria +217 tokens por turno por agente (+5% do campo), sem ganho
-  documentado, e o que o XML resolveria — delimitar blocos — a plataforma já resolve, porque os 4 campos
-  são entradas separadas. A regra existe para impedir que a próxima revisão "melhore" o prompt para os
-  blocos XML dos exemplos da documentação, que são orquestração multi-etapa do modelo frontier.
-- **2.1.0** — Adequação ao `gpt-5.4-nano`. Modelo alvo declarado, com as consequências de escrita que derivam dele. Acrescentados os três blocos que faltavam no prompt gerado — **Regras Críticas** no topo das Diretrizes, **Bordas** e **Formato da Resposta** — e as regras de borda que não existiam: falha técnica com escada própria e precedência entre regras declarada. Motivo: a orientação oficial do nano pede tarefa estreita, saída fechada e nenhuma borda implícita; borda não escrita é comportamento inventado. **R21 reescrita**: a sentinela passa a ser declarada no `enum` do parâmetro, em vez de o schema ser afrouxado para acomodá-la. Com a plataforma sem `allowed_tools`, `reasoning_effort` nem modo strict, o enum é a única restrição estrutural disponível — desarmá-lo era abrir mão do último controle que não depende de o modelo obedecer.
-- **2.0.0** — Reescrita autocontida. Antes, 14 regras eram citadas por número de um documento externo; numa
-  medição com esse documento fora de alcance, **6 delas viraram buraco** — a taxonomia de trilhas e os
-  limites de domínio foram pulados, o fallback de roteamento ficou sem destino, e o formato de quatro colunas
-  do dicionário de variáveis teve de ser **adivinhado**. Agora todas estão inlinadas com numeração própria e
-  o motivo junto. Acrescentada a ficha de parâmetros do Passo 0: a versão anterior produzia boas perguntas e
-  assumia mesmo assim, listando na frase seguinte "o que eu assumiria por conta própria, e é chute".
-  Acrescentados os esqueletos literais de cada arquivo gerado.
-- **1.0.0** — Versão inicial.
