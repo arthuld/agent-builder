@@ -6,15 +6,16 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Criar Agente de Autoagendamento — Clinux
 
 Cria a pasta do cliente `$ARGUMENTS` a partir do **modelo de referência da categoria** — o cliente Clinux já
 montado que existir no workspace. Localize-o pela busca do bloco *Onde criar a pasta do cliente*; se houver
-mais de um, pergunte qual usar como referência. Não havendo nenhum, diga isso e pare: sem modelo não há de
-onde derivar os invariantes desta categoria.
+mais de um, pergunte qual usar como referência — com escopo que inclui consulta, proponha o que já tem trilha
+de consulta (funções de médico e de disponibilidade de consulta). Não havendo nenhum, diga isso e pare: sem
+modelo não há de onde derivar os invariantes desta categoria.
 
 **Não escreva um agente do zero.** No Clinux não existe base de conhecimento estática: unidade, convênio,
 exame, preço e horário são **consultas diretas a endpoints**, iguais em qualquer cliente do mesmo sistema. O
@@ -69,10 +70,17 @@ de pré-agendamento (`set_transbordo_agendamento`, `set_transbordo_geral`). Perg
 filas, o nome exato de cada uma, e **qual gatilho leva a qual** — sem esse critério o agente tem duas portas
 e nenhuma regra para escolher.
 
-**O que continua fora do alcance:** o *conteúdo comportamental* da trilha de consulta — escolha de
-especialidade e de médico — não existe no modelo de referência. Registrar os índices é uma coisa; escrever a
-trilha é outra. Com escopo incluindo consulta, escreva a trilha de exames, registre os índices de consulta
-que o cliente informar, e **reporte a trilha comportamental como pendência**. Não improvise etapa de médico.
+**Trilha de consulta: derive só de uma referência que a tenha.** Se o modelo de referência escolhido tem
+trilha de consulta, derive dela a estrutura — busca da consulta → preço (particular) → médico → disponibilidade
+→ gravação, sem pedido médico — e confirme com o cliente as duas decisões que variam: o médico é escolha
+obrigatória ou opcional (e, se opcional, qual valor o endpoint aceita como "qualquer médico"), e se a consulta
+exige pedido. Se a referência **não** tem trilha de consulta, escreva a de exames, registre os índices de
+consulta e **reporte a trilha comportamental como pendência**. Não improvise etapa de médico sem endpoint que a
+sustente.
+
+**Mesmo endpoint, uma função.** Quando duas etapas usam o mesmo endpoint — o preço de exame e o de consulta,
+por exemplo —, registre **uma** função para as duas trilhas, não duas. Cada função é paga em todo turno; o
+endpoint não muda por estar em outra trilha.
 
 **Armadilha do escopo maior: a negação não se herda.** Na referência, cada menção a um serviço fora do escopo
 existe **para negá-lo** — a lista de exames não realizados inclui `Consultas` e `Fisioterapia`. Copiar isso
@@ -94,6 +102,7 @@ ficha abaixo antes de escrever qualquer arquivo**. Toda linha tem de ter um valo
 
 ```
 FICHA DE PARÂMETROS — <cliente>
+  destino.pasta .................. 
   cliente.grafia_comercial ....... 
   agente.nome .................... 
   agente.genero .................. 
@@ -103,7 +112,10 @@ FICHA DE PARÂMETROS — <cliente>
   omnitag.enum ................... 
   escopo ......................... 
   funcoes.inventario ............. 
+  funcoes.relacao_endpoints ...... 
   funcoes.indices_consulta ....... 
+  consulta.medico ................ 
+  plano.particular_fixo .......... 
   negocio.exames_nao_realizados .. 
   negocio.pedido_obrigatorio ..... 
   negocio.preparo_em_escopo ...... 
@@ -134,12 +146,13 @@ Reexiba a ficha preenchida no relatório final (Passo 3), com a origem de cada v
 | Dado | Por que não se deduz |
 | --- | --- |
 | **Grafia comercial do cliente** | Aparece na primeira mensagem que todo paciente lê. Não inventar acento, espaço ou caixa. |
-| **Nome e gênero do agente** | Gênero não se deduz do nome. E ter nome próprio de pessoa cria uma borda: perguntado se é humano, o agente confirma que é assistente virtual. |
+| **Nome e gênero do agente** | Gênero não se deduz do nome — e ofereça a opção **neutra**, que muda o texto inteiro: sem artigo antes do nome, sem adjetivo ou possessivo flexionado ("Sou [Nome], assistente virtual"). E ter nome próprio de pessoa cria uma borda: perguntado se é humano, o agente confirma que é assistente virtual. |
 | **Texto literal da saudação** | É transcrito ao pé da letra. Se o cliente não tiver um, propor e pedir aprovação — não assumir a de outro cliente. |
 | **Fila(s) de transbordo** | O modelo pressupõe uma fila única de agendamento. Havendo mais de uma, muda o desenho da função de transbordo. |
 | **ENUM de `OMNITAG`** | Os valores são por cliente. Herdar de outro grava classificação errada em silêncio — a estatística fica plausível e falsa. |
 | **Escopo** | Exames (módulo AAGE), consultas (AAGC) ou ambos. Consultas trazem trilha de especialidade e médico, e outras funções. |
 | **Inventário real de funções** | Quais estão de fato configuradas na plataforma. Autocadastro contratado? Preço exibido para particular? Cada "não" remove função e muda uma etapa. |
+| **Relação de endpoints** | Para cada função: a URL com os `__VARIAVEL__` e a variável `RESPONSE_*` em que o retorno chega. **É daqui, e não da referência, que saem os nomes de variável** — eles mudam entre instalações do mesmo Clinux (ver invariantes). Salve a relação verbatim em `origem/` e um JSON por endpoint em `ferramentas/endpoints/`, com a URL exatamente como veio e, como parâmetros, **só** os `__VARIAVEL__` dela. Função sem endpoint na relação (formulário de cadastro, tag, transbordo costumam ser recursos da plataforma) fica retida até o cliente dizer como funciona. |
 | **Funções de transbordo, uma por fila** | A fila vai no nome da função, não em parâmetro. Precisa do índice e do nome de cada uma, **e do gatilho que leva a cada fila** — duas portas sem critério de escolha é pior que uma. Perguntar também o que **mais** muda por fila: profundidade da coleta antes de transbordar, e o que aparece no card. Filas diferentes costumam querer coisas diferentes. |
 | **Contrato de retorno da gravação** | Campo e valores exatos que distinguem sucesso, horário ocupado e falha, e o campo do número do agendamento. Sem eles a Tabela de Retorno da Gravação é chute — e ler o campo errado faz agendamento concluído transbordar (ver invariantes). |
 | **Índices da trilha de consulta** | Só quando o escopo inclui consulta. Quais índices, e **para cada um**: reusa o endpoint da trilha de exames ou aponta para outro? Não deduzir nem um nem outro. |
@@ -153,10 +166,12 @@ Reexiba a ficha preenchida no relatório final (Passo 3), com a origem de cada v
 | **Preparo está em escopo?** | O padrão da categoria é **fora**: nenhuma função devolve preparo, e preparo errado faz o paciente perder o exame. Só entra se o cliente contratou e você souber em qual retorno vem. |
 | **Reagendamento e cancelamento** | Repasse com coleta mínima (padrão) ou o agente executa? Executar exige funções que o módulo não tem. |
 | **Consentimento LGPD** | O padrão da categoria é tratado **a montante**: o agente não tem etapa de consentimento. Confirmar. |
+| **Particular tem plano fixo?** | Se sim (ID e nome do plano particular), o particular **não** passa pela pesquisa de plano: `PLANO_ID` e `PLANO_NOME` são estáticos, e a função de planos fica só para convênio. |
+| **Médico na consulta** | Escolha obrigatória ou opcional; se opcional, o valor que o endpoint aceita como "qualquer médico". Vale também para a gravação. |
 
 ### O que **parece** default e é regra de negócio
 
-Quatro valores que um agente assume sem perceber, porque são plausíveis e há um único exemplo no repositório.
+Valores que um agente assume sem perceber, porque são plausíveis e o repositório tem poucos exemplos.
 Todos ficam `[PERGUNTAR]`:
 
 | Assunção tentadora | Por que não é default |
@@ -165,6 +180,8 @@ Todos ficam `[PERGUNTAR]`:
 | "escopo = exames, porque é o único modelo que existe" | O repositório ter um só exemplo não é evidência sobre este cliente. |
 | "fila única de agendamento" | A referência tem uma só, mas o padrão da plataforma é **uma função por fila**. Perguntar quantas, e o gatilho de cada. |
 | "LGPD a montante, porque é o padrão da categoria" | É padrão **a confirmar**, não default silencioso. |
+| "Os nomes de variável são os da referência — é o mesmo Clinux" | Não são. Num cliente a unidade era `EMPRESA_ID`, noutro `UNIDADE_ID`; o grupo de exames mudou de plural para singular; busca de exame e de consulta usam nomes diferentes. Só a relação de endpoints diz. |
+| "A disponibilidade recebe data e hora inicial, como na referência" | Leia a URL. Já houve endpoint sem data (busca N dias a partir de hoje) e sem hora inicial — o que não está na URL não se envia, e o filtro passa a ser feito sobre o retorno. |
 
 ### Com default — assumir e informar no relatório final
 
@@ -188,22 +205,25 @@ Todos ficam `[PERGUNTAR]`:
 │   └── clienteinfo.json       ← card do atendente no transbordo
 ├── ferramentas/
 │   ├── manuais/               ← 1 .md por função, exatamente 2 campos cada
+│   ├── endpoints/             ← 1 .json por endpoint: URL verbatim, RESPONSE_*, só os __VARIAVEL__
 │   └── exemplos-de-dialogo.md ← documentação; não vai para a plataforma
 ├── origem/                    ← material bruto do cliente
 └── relatorios/                ← nasce com o primeiro relatório
 ```
 
 **Sem `ferramentas/dados/` e sem `ferramentas/schemas/`.** Não há base estática nem JSON Schema a versionar.
-Não criar pasta "para depois".
+Não criar pasta "para depois". `ferramentas/endpoints/` só nasce com a relação de endpoints do cliente — sem
+ela, a pasta não existe e a relação é pendência bloqueante.
 
 ### O que copia praticamente inteiro
 
-- **Os 12 manuais.** Nenhum cita nome de cliente. Ajustar só o que o inventário de funções do Passo 0 mudou.
+- **Os manuais.** Nenhum cita nome de cliente. Ajustar o que o inventário de funções do Passo 0 mudou e,
+  em cada um, os parâmetros e o `RESPONSE_*` da relação de endpoints.
 - **`clienteinfo.json`.** Só tokens de variável, zero conteúdo de cliente.
 - **A espinha do `agente.md`:** Regra Geral de Dados, Regra Geral de Retorno de Função, Tabela de Etapas,
   etapas 1–6, trilha de repasse, Regra de Falha Técnica, Regra de Tentativas, e as 4 seções de segurança.
 - **As notas de sistema do `variaveis.md`:** proibição de renomear, formato de data, nenhum valor de reserva
-  em campo obrigatório.
+  em campo obrigatório. A **tabela** de variáveis não se copia: os nomes saem da relação de endpoints.
 
 ### O que **não** copia
 
@@ -239,6 +259,9 @@ Rodar **todas** antes de entregar. Estas checagens já pegaram defeito real em r
 # 7. Cada "não realiza" no prompt está ancorado na lista de exclusão ou na proibição do retorno vazio
 # 8. Nenhum nome próprio de OUTRO cliente vazou: grepar o nome do cliente de referência e o do
 #    cliente anterior. Nao escrever esses nomes aqui — este arquivo e publico
+# 9. Todo __VARIAVEL__ dos JSON de endpoint é variável declarada e citada no manual da função;
+#    todo RESPONSE_* é citado no manual da função que o devolve
+# 10. Nenhum nome de variável da referência que não exista na relação de endpoints deste cliente
 ```
 
 Medir o **bloco sempre-ativo** com `tiktoken` (encoding `o200k_base`): os 4 campos de prompt mais o
@@ -267,33 +290,8 @@ Fechar exibindo, nesta ordem:
 4. **Pontos importantes** — as decisões que mudam comportamento e que alguém vai questionar depois. No
    mínimo: escopo assumido, desfecho de quem não tem pedido médico, preparo dentro ou fora, o que acontece
    com exame fora da lista de exclusão, e o custo medido do sempre-ativo.
-5. **Medição de token**, antes × depois, com o número real — não a estimativa.
+5. **Medição de token** do sempre-ativo, ao lado do número do modelo de referência (Passo 2), com o valor
+   real — não a estimativa.
 
 **Nunca fechar dizendo "pronto" com pendência de dado de cliente aberta.** Diga o que está pronto para colar,
 o que está pronto como documento interno, e o que não sobe até fechar pendência.
-
----
-
-## Changelog
-
-- **1.4.0** — Retorno da gravação (invariante 15): decidir pelo campo de resultado, nunca pelo `valor`;
-  `FALHA - HORARIO OCUPADO` pergunta outro horário ou atendente; gravação fora do retry silencioso;
-  sucesso não transborda salvo anexo falho. Contrato de retorno virou dado bloqueante do Passo 0.
-  `ARQUIVO_PEDIDO` guarda a URL do arquivo, nunca marcador de texto (invariante 16). Origem: UltramedRJ,
-  21/10/2026.
-
-- **1.3.0** — Alinhamento com a correção do contrato do runtime nas skills de Pré Agendamento. O invariante
-  de custo dizia que ali a §2 do manual não chegava ao modelo; não é verdade — são os mesmos dois campos
-  por função, e o Auto Agendamento era quem estava certo. Removida a regra de mascaramento de documento,
-  descontinuada pelo cliente.
-
-- **1.2.0** — **Formato declarado: markdown para estruturar, nunca XML.** A documentação oficial não
-  prescreve formato de prompt para o `gpt-5.4-nano` — o que ela exige é *ter* estrutura. Markdown
-  entrega isso mais barato (~+5% do campo para converter em XML, sem ganho), e aqui o custo seria pago
-  em dobro, pelos dois campos por função.
-- **1.1.0** — Modelo alvo declarado em `invariantes-clinux.md`, com o peso extra que ele tem nesta
-  categoria: sempre-ativo dobrado por função, e retorno vazio como canal único de erro. Convenções do
-  projeto antes citadas por número passam a vir enunciadas por extenso — o arquivo viaja no plugin, para
-  workspaces onde o documento de convenções não existe, e exceção a regra invisível convida a
-  reintroduzir o defeito que ela evitava.
-- **1.0.0** — Versão inicial.

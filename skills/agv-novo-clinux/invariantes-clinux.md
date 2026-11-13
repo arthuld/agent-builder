@@ -11,8 +11,8 @@ para workspaces onde o documento de convenções não existe.
 
 ## O modelo alvo
 
-O agente gerado roda em **`gpt-5.4-nano`**, com `reasoning_effort` em `none` — o default da família, que a
-plataforma não expõe. Aqui isso pesa mais do que no Pré Agendamento, por dois motivos:
+O agente gerado roda em **`gpt-5.4-nano`**. A plataforma não expõe `reasoning_effort`: vale o default do
+modelo, que no nano é `none`. Aqui isso pesa mais do que no Pré Agendamento, por dois motivos:
 
 - **O sempre-ativo é o dobro por função** (*Objetivo* **e** *Condições de execução*), então cada palavra
   duplicada entre o prompt e um campo de função é paga duas vezes por turno.
@@ -29,6 +29,10 @@ por função. Os blocos XML dos exemplos da documentação são orquestração m
 
 **Se o modelo mudar, revise esta seção antes de tudo.**
 
+**Prazo:** o `gpt-5.4-nano` sai da API em 01/04/2027, e o substituto indicado é o `gpt-6-luna`, cujo
+default de `reasoning_effort` é `medium`. A premissa de `none` não se transfere sozinha: confirme-a no
+modelo novo antes de reaproveitar estas escolhas.
+
 ---
 
 ## 1. Nome de variável é proibido mudar
@@ -40,6 +44,13 @@ requisição.
 **Por que importa:** renomear — inclusive para o padrão `__IA_CAMPO__` usado no Pré
 Agendamento — quebra a chamada **em silêncio**. Parâmetro que o Clinux não reconhece não gera erro: devolve
 **vazio**, e o agente reporta vazio ao paciente como se não houvesse resultado.
+
+**O nome é da instalação, não do sistema.** Dois clientes no mesmo Clinux usaram nomes diferentes para o
+mesmo parâmetro: a unidade era `EMPRESA_ID` num e `UNIDADE_ID` no outro; o grupo de exames,
+`PROCEDIMENTOS_GRUPO_ID` e `PROCEDIMENTO_GRUPO_ID`; e, no mesmo cliente, a busca de exame recebia
+`EXAME_DIGITADO` e a de consulta `PROCEDIMENTO_DIGITADO`. A fonte do nome é a URL do endpoint do cliente,
+nunca o modelo de referência — copiar a tabela de variáveis de outro cliente produz exatamente o parâmetro
+não reconhecido que volta vazio.
 
 A convenção de nomenclatura de variável do Pré Agendamento — *toda variável de contexto segue o padrão
 `__IA_CAMPO__`* — **não se aplica** a esta categoria. Aqui o nome da variável é o contrato com o endpoint, e
@@ -157,6 +168,9 @@ posteriores.
   dado que a função não devolveu.
 - **Vazio → refazer uma vez sem janela de horário**, mesma data-piso. Cobre o turno oposto e qualquer hora de
   uma vez, numa chamada em vez de duas.
+- **Ler a URL antes de escrever a etapa.** Já houve endpoint de disponibilidade sem parâmetro de data (busca
+  N dias a partir de hoje) e sem hora inicial (só `horaFinal`). O que não está na URL não se envia: sem hora
+  inicial, "tarde" vai sem limite e o agente apresenta só as opções a partir do corte de turno.
 - **Ainda vazio → não oferecer data posterior.** Sendo piso, nada depois dela tem vaga também: a pergunta
   oferece ao paciente uma escolha que não existe. Transbordar. Data **anterior** só se ele propuser.
 
@@ -180,6 +194,12 @@ reaproveitados no loop sem reperguntar.
 
 > **Confirmar por cliente.** Se um futuro cliente Clinux tiver um endpoint que aceite disponibilidade
 > combinada, esta regra muda para ele. Perguntar — não assumir nem o um-por-vez nem o combinado.
+>
+> **Com disponibilidade combinada** (IDs separados por vírgula, cada opção de horário trazendo um ID de agenda
+> por exame, na mesma ordem), o **preço** continua item a item: o endpoint de preço recebe um ID. Ordem:
+> busca do exame → preço → aceite → próximo exame, e a lista de IDs só é montada depois do último aceite.
+> Montar a lista antes faz o preço receber a lista, voltar vazio e o particular seguir sem ver valor. O
+> formato combinado é o primeiro teste da homologação — um cliente o abandonou por limitação do endpoint.
 
 ---
 
@@ -344,3 +364,19 @@ na conversa — nunca um marcador de texto como `pedido_anexado` ou `recebido`. 
 anexo envia ao Clinux; um marcador passa na trava "pedido recebido" e chega ao endpoint como lixo, o anexo
 falha e o paciente é transbordado com o agendamento já gravado. Dizer isso na variável, na etapa do pedido
 e no parâmetro do manual de anexo.
+
+---
+
+## 17. Retorno envelopado em `RESPONSE_*`: contar os itens, nunca o `valor`
+
+Cada endpoint devolve dentro de uma variável própria (`RESPONSE_UNIDADES`, `RESPONSE_PLANOS`…), no formato
+`{"valor": N, "variaveis": {"variaveis_json": "[...]", ...}}`. Os itens estão em `variaveis_json`, cada um
+com `valor` (rótulo) e `variaveis` (campos). O manual de cada função diz em qual `RESPONSE_*` ler.
+
+**Por quê:**
+- O `valor` de fora **não** é a quantidade: num retorno real de unidades ele valia `2` com três unidades
+  listadas. Contar por ele quebra a Regra Geral de Retorno — o caso de um item vira lista, ou o contrário.
+- A plataforma inclui um item *"Outras opções"* na própria lista. Ele não é resultado e não entra na contagem;
+  contado, uma unidade única vira escolha entre duas.
+- Sem dizer onde ler, o modelo olha o objeto externo, que nunca está vazio — e o retorno vazio, canal único de
+  erro do Clinux, deixa de ser reconhecido.
