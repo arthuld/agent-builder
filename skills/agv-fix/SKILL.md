@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Aplicar Correções em Agente Virtual
@@ -130,9 +130,12 @@ Guarde uma cópia do original antes de reestruturar, e só a descarte depois da 
 
 ## Passo 4 — Verificação mecânica
 
-Rodar **todas**, depois de aplicar tudo. São as mesmas que governam a criação:
+Rodar **todas**, depois de aplicar tudo. É o subconjunto mecânico das verificações da criação e da
+auditoria:
 
 ```bash
+cd "<pasta do cliente>"   # todos os comandos rodam a partir dela
+
 # o prompt tem exatamente 4 seções
 grep -c '^## ' config/agente.md
 
@@ -159,8 +162,17 @@ python -c "import json;json.load(open('config/clienteinfo.json',encoding='utf-8'
 # valor ambíguo nos dados
 [ -d ferramentas/dados ] && grep -n '\[\]\|null' ferramentas/dados/*.json
 
-# grafia de fila consistente entre os arquivos do cliente
-grep -rhoE '\b[A-Z][a-z]+_[A-Za-z_]+\b' config/ ferramentas/ | sort | uniq -c | sort -rn | head
+# grafia de fila consistente entre os arquivos do cliente.
+# Para CADA fila do ENUM em variaveis.md, compare a contagem exata com a contagem sem caixa:
+# diferença = alguma ocorrência com grafia divergente. Não use regex de formato — fila real pode ser
+# uma palavra só ("Chat") ou ter espaço ("Atendimentos Chat"), e regex de formato passa sem verificar nada.
+for fila in "<fila 1>" "<fila 2>"; do   # os valores reais do ENUM, um por aspas
+  printf '%s  exata=%s  sem-caixa=%s\n' "$fila" \
+    "$(grep -rhoF -- "$fila" config/ ferramentas/ | wc -l)" \
+    "$(grep -rhoiF -- "$fila" config/ ferramentas/ | wc -l)"
+done
+# Acento divergente não aparece aqui. A lista de filas se confere contra a cadastrada na plataforma,
+# caractere a caractere — é item do relatório (Passo 5), não desta checagem.
 ```
 
 **Verificação que falha é correção incompleta**, não ruído a ignorar. Conserte antes de reportar pronto.
@@ -197,11 +209,3 @@ afetam, para serem retestados. Não marque caso nenhum como aprovado: esta skill
 | Reestruturar sem round-trip | A pasta não está no git. Campo perdido não volta |
 | Inventar fila, convênio ou URL que o plano não trouxe | Grafia divergente é transbordo perdido, sem erro visível |
 | Chamar verificação mecânica de aprovação | Nenhuma delas roda o agente no modelo |
-
-## Changelog
-
-- **1.0.0** — Versão inicial. Fecha o ciclo auditar → corrigir, que antes era pedido em conversa a cada
-  vez. O desenho preserva a separação entre diagnosticar e escrever: recebe plano aprovado e aplica item a
-  item, sem reauditar e sem acrescentar achado. O Passo 3 (round-trip antes de reestruturar) existe porque
-  a pasta do cliente não está sob controle de versão, e uma reestruturação sem ele já perdeu um campo para
-  sempre.
