@@ -115,21 +115,33 @@ Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em 
 | | Sempre-ativo | Ao disparar |
 |---|---|---|
 | Conjunto das 8 | **~512 tok** por sessão | n/a |
-| `agv-novo-dinamico` | ~60 | ~13,1k |
-| `agv-novo-estatico` | ~70 | ~12,8k |
-| `agv-auditoria` | ~60 | ~6,2k |
-| `agv-novo-clinux` | ~70 | ~4,4k |
-| `agv-relatorio-homolog` | ~70 | ~2,5k |
-| `agv-fix` | ~70 | ~2,3k |
-| `agv-relatorio-prod` | ~70 | ~2k |
-| `agv-indice` | ~50 | ~1,9k |
+| `agv-novo-dinamico` | ~60 | ~13,6k |
+| `agv-novo-estatico` | ~70 | ~13,4k |
+| `agv-auditoria` | ~60 | ~6,8k |
+| `agv-novo-clinux` | ~70 | ~5,2k + ~6k dos invariantes |
+| `agv-fix` | ~70 | ~2,6k |
+| `agv-relatorio-homolog` | ~70 | ~2,6k |
+| `agv-relatorio-prod` | ~70 | ~2,2k |
+| `agv-indice` | ~50 | ~2,1k |
 
-Medido com `claude plugin details agent-builder` na v2.1.0. São estimativas do runtime, não faturamento.
+De onde vêm os números:
+
+▸ **Sempre-ativo:** medido com `claude plugin details agent-builder` na v2.1.0. É a estimativa do próprio
+Claude Code, não o valor faturado.
+▸ **Ao disparar:** medido na v2.4.0 com `tiktoken` sobre o `SKILL.md` de cada skill. Serve como ordem de
+grandeza, porque o Claude conta tokens de outro jeito.
+
+O histórico de cada skill fica em `skills/<nome>/CHANGELOG.md`. Esse arquivo não é lido quando a skill
+dispara, então não pesa no custo.
 
 Não confunda este custo com o do **agente gerado**. Aqui se mede o que as skills custam na sua sessão de
 Claude Code. O agente que elas produzem roda em `gpt-5.4-nano` na plataforma do cliente, e o sempre-ativo
 dele são outros: os 4 campos do prompt mais o *Objetivo da Função* e as *Condições de Execução* de cada
 função, reenviados a cada turno.
+
+**Data marcada:** a OpenAI desliga o `gpt-5.4-nano` em **01/04/2027** e indica o `gpt-6-luna` no lugar. As
+skills escrevem pensando num modelo pequeno, e cada uma explica isso numa seção chamada "O modelo alvo". Na
+troca de modelo, é por ela que se começa.
 
 ---
 
@@ -145,7 +157,7 @@ nome da pasta.
 | Nome de variável | `__IA_CAMPO__` | nome do parâmetro do endpoint |
 | Fim do caminho feliz | transbordo para humano | gravação no sistema |
 | Sentinela de ausência | três estados, declarados no `enum` | proibida em campo obrigatório: retém a chamada e pergunta |
-| Retorno vazio | pode indicar ausência na base | **nunca** autoriza negar; só a lista de exclusão explícita |
+| Retorno vazio | **não** autoriza negar, salvo base que o cliente declarou autoritativa | **nunca** autoriza negar; só a lista de exclusão explícita |
 
 ---
 
@@ -240,16 +252,20 @@ buraco.
 
 ## Estado atual
 
-| Skill | Versão | Validação |
+| Skill | Versão | Como foi testada |
 |---|---|---|
-| `agv-auditoria` | 3.1.0 | Suíte de evals 6/6 · falso positivo de decisão deliberada 4/6 → 0/6 |
-| `agv-novo-estatico` | 3.0.0 | GREEN 3/3 + 2 execuções extras · controle falhou no encerramento |
-| `agv-novo-dinamico` | 2.0.0 | GREEN 3/3 · controle empatou; o ganho é portabilidade |
-| `agv-novo-clinux` | 1.4.0 | GREEN 3/3 |
-| `agv-relatorio-homolog` | 2.1.0 | GREEN 1/1 |
-| `agv-relatorio-prod` | 2.0.0 | GREEN 1/1 |
-| `agv-indice` | 1.0.0 | 4/4 na tabela de decisão |
-| `agv-fix` | 1.0.0 | sem GREEN — única do conjunto ainda não validada |
+| `agv-auditoria` | 3.2.0 | Achou os defeitos novos em 3 de 3 execuções; a versão anterior, em 0 de 2. **Atenção:** em 2 das 3, o juiz contou como falso positivo um comentário sobre a fila em branco, mesmo com a fila listada em "Decisões deliberadas". A versão anterior passou nesse ponto em 2 de 2 |
+| `agv-novo-estatico` | 3.1.0 | Passou em todos os critérios novos em 3 execuções, sem perder nenhum antigo. A versão anterior falhou em 4 dos 6 critérios novos |
+| `agv-novo-dinamico` | 2.1.0 | Passou nos critérios novos em 2 execuções, sem comparação com a versão anterior. Uma falhou no critério de telefone, que provavelmente era largo demais e foi corrigido sem nova rodada |
+| `agv-novo-clinux` | 1.5.0 | Mudança só de texto e versão nesta rodada; o último teste de comportamento é da 1.4.0 (3 de 3) |
+| `agv-relatorio-homolog` | 2.1.0 | 1 de 1 |
+| `agv-relatorio-prod` | 2.0.0 | 1 de 1 |
+| `agv-indice` | 1.0.0 | 4 de 4 na tabela de decisão |
+| `agv-fix` | 1.0.1 | Ainda sem teste. É a única do conjunto nessa situação |
+
+Os testes da v2.4.0 rodaram em 11/11/2026, com a suíte de `evals/`, juiz Sonnet e um braço de controle com a
+versão anterior das skills. São poucas execuções por caso: mostram que a mudança faz o que promete, não medem
+variação.
 
 A regra de destino de pasta, comum às três skills de criação, tem GREEN próprio: **5/5**, cobrindo as duas
 ramificações. Em diretório vazio (dinâmico ×2, estático, clinux) as quatro execuções marcaram o destino
