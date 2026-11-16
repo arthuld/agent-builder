@@ -1,5 +1,7 @@
 # Changelog — agv-novo-estatico
 
+- **3.2.0** — **Verificador único e teto de escopo**, iguais aos da dinâmica 2.2.0: o `verificar.py` no
+  Passo 4, `Bash` em `allowed-tools`, e a parada antes de escrever quando o inventário passa de 10 funções.
 - **3.1.0** — **O template do manual de transbordo deixou de contradizer a R21, e `"Não coletado"` voltou a
   ter sentido próprio.** O bloco `COMPATIBILIDADE DE SCHEMA` do template ainda mandava escrever "campos
   condicionais são string livre" — o remédio antigo, que a R21 passou a classificar como defeito —, e como o

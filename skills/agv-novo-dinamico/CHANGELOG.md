@@ -1,5 +1,11 @@
 # Changelog — agv-novo-dinamico
 
+- **2.2.0** — **Verificador único e teto de escopo.** O Passo 4 ganha o `verificar.py`, o mesmo script da
+  auditoria e da correção, que roda as checagens mecânicas e mede o sempre-ativo; sem terminal ou sem
+  `tiktoken`, o relatório diz *não medido*, nunca estima. `Bash` entra em `allowed-tools` para isso. Entra o
+  teto de escopo: com mais de 10 funções a skill para antes de escrever e apresenta as opções; de 7 a 10, ou
+  acima de 10 mil tokens, avisa no topo do relatório. Motivo: a orientação do nano é tarefa estreita, e um
+  agente real chegou a 18 mil tokens sem que nada parasse o crescimento.
 - **2.1.0** — **Variável de observações volta, definida uma única vez; telefone do contato deixa de ser
   coletado.** A R5 proibia a variável de observações e a prática a criava: três dos quatro agentes mais
   recentes a tinham, a pedido do usuário. Agora ela é padrão — um informativo breve para o atendente —,

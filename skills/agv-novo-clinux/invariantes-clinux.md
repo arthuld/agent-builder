@@ -380,3 +380,24 @@ com `valor` (rótulo) e `variaveis` (campos). O manual de cada função diz em q
   contado, uma unidade única vira escolha entre duas.
 - Sem dizer onde ler, o modelo olha o objeto externo, que nunca está vazio — e o retorno vazio, canal único de
   erro do Clinux, deixa de ser reconhecido.
+
+---
+
+## 18. Pré-requisitos por função: a trava fica na própria função
+
+Toda função que consulta ou grava abre as *Condições de execução* com uma linha só:
+
+```
+Pré-requisitos: EMPRESA_ID, PLANO_ID, PROCEDIMENTOS_GRUPO_ID. Faltando qualquer um, não chamar: perguntar.
+```
+
+A lista é exatamente a dos `__VARIAVEL__` do JSON de endpoint da função. No cadastro da função, os mesmos
+parâmetros são marcados como obrigatórios.
+
+**Só dados, nunca fluxo.** A ordem das etapas continua nas Diretrizes de atendimento, declarada uma vez
+(invariante 11): replicar detalhe operacional por função já inflou o sempre-ativo em 67%.
+
+**Por quê:** a regra de reter a chamada estava escrita só nas Diretrizes, longe do ponto em que o modelo
+decide chamar. A linha de pré-requisitos põe a trava no campo que ele lê nessa hora, e o cadastro com os
+parâmetros obrigatórios a reforça por estrutura, sem depender de o modelo obedecer. Parâmetro que falta
+não volta como erro no Clinux — volta vazio (invariante 5) —, então a trava antes da chamada é a única.

@@ -1,5 +1,10 @@
 # Changelog — agv-novo-clinux
 
+- **1.6.0** — **Pré-requisitos por função (invariante 18) e verificador único.** Toda função de consulta ou
+  gravação abre as Condições de execução com a linha `Pré-requisitos:`, listando os parâmetros do seu
+  endpoint, e o cadastro os marca como obrigatórios — a trava fica no campo que o modelo lê na hora de
+  chamar, sem replicar fluxo por função. Desenho proposto pelo usuário em 11/11/2026. Checagem 11 nova, e o
+  `verificar.py` no Passo 2. Sem teste de comportamento: não existe caso Clinux completo na suíte.
 - **1.5.0** — Relação de endpoints virou dado bloqueante do Passo 0 e fonte dos nomes de variável, que
   mudaram entre duas instalações do mesmo Clinux; um JSON por endpoint em `ferramentas/endpoints/`, com só os
   `__VARIAVEL__` como parâmetros. Retorno envelopado em `RESPONSE_*` (invariante 17). Trilha de consulta
@@ -12,8 +17,8 @@
 - **1.4.0** — Retorno da gravação (invariante 15): decidir pelo campo de resultado, nunca pelo `valor`;
   `FALHA - HORARIO OCUPADO` pergunta outro horário ou atendente; gravação fora do retry silencioso;
   sucesso não transborda salvo anexo falho. Contrato de retorno virou dado bloqueante do Passo 0.
-  `ARQUIVO_PEDIDO` guarda a URL do arquivo, nunca marcador de texto (invariante 16). Origem: UltramedRJ,
-  21/10/2026.
+  `ARQUIVO_PEDIDO` guarda a URL do arquivo, nunca marcador de texto (invariante 16). Origem: um cliente Clinux em
+  produção, 21/10/2026.
 
 - **1.3.0** — Alinhamento com a correção do contrato do runtime nas skills de Pré Agendamento. O invariante
   de custo dizia que ali a §2 do manual não chegava ao modelo; não é verdade — são os mesmos dois campos

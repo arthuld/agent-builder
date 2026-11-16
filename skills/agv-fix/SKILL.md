@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.0.1"
+  version: "1.1.0"
 ---
 
 # Aplicar Correções em Agente Virtual
@@ -130,8 +130,16 @@ Guarde uma cópia do original antes de reestruturar, e só a descarte depois da 
 
 ## Passo 4 — Verificação mecânica
 
-Rodar **todas**, depois de aplicar tudo. É o subconjunto mecânico das verificações da criação e da
-auditoria:
+Rodar **todas**, depois de aplicar tudo.
+
+**Atalho:** `python verificar.py <pasta do cliente>` roda de uma vez as checagens mecânicas que um
+script consegue fazer e mede o sempre-ativo. O arquivo `verificar.py` fica na mesma pasta deste
+`SKILL.md`. Cada `FALHA` que ele imprime é correção pendente; `INFO` é ponto para conferir à mão. Sem
+terminal, ou sem `tiktoken` instalado, faça as checagens à mão e escreva *não medido* no relatório —
+nunca uma estimativa. O script não substitui os itens que pedem leitura: fluxo, fila de cada demanda,
+consumidor de cada dado.
+
+Sem Python, o subconjunto em shell:
 
 ```bash
 cd "<pasta do cliente>"   # todos os comandos rodam a partir dela

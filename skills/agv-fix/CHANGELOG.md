@@ -1,5 +1,7 @@
 # Changelog — agv-fix
 
+- **1.1.0** — **Verificador único.** O Passo 4 ganha o `verificar.py`, o mesmo script da criação e da
+  auditoria, para que a correção seja conferida pela mesma régua que a criou.
 - **1.0.1** — **A checagem de grafia de fila passou a verificar fila real.** A anterior procurava o formato
   `Palavra_Palavra`; filas como `Chat` ou `Atendimentos Chat` não casavam, e a verificação passava sem ter
   verificado nada. Agora compara, fila a fila do ENUM, a contagem exata com a contagem sem distinção de

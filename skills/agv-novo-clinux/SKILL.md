@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # Criar Agente de Autoagendamento — Clinux
@@ -249,6 +249,13 @@ curta sobrevive a renumeração apontando para a função errada, e não dá err
 
 Rodar **todas** antes de entregar. Estas checagens já pegaram defeito real em revisão humana.
 
+**Atalho:** `python verificar.py <pasta do cliente>` roda de uma vez as checagens mecânicas que um
+script consegue fazer e mede o sempre-ativo. O arquivo `verificar.py` fica na mesma pasta deste
+`SKILL.md`. Cada `FALHA` que ele imprime é correção pendente; `INFO` é ponto para conferir à mão. Sem
+terminal, ou sem `tiktoken` instalado, faça as checagens à mão e escreva *não medido* no relatório —
+nunca uma estimativa. O script não substitui os itens que pedem leitura: fluxo, fila de cada demanda,
+consumidor de cada dado.
+
 ```bash
 # 1. Toda função citada tem manual, e todo manual é citado
 # 2. Nenhuma referência curta `N_` — só nome completo
@@ -262,6 +269,8 @@ Rodar **todas** antes de entregar. Estas checagens já pegaram defeito real em r
 # 9. Todo __VARIAVEL__ dos JSON de endpoint é variável declarada e citada no manual da função;
 #    todo RESPONSE_* é citado no manual da função que o devolve
 # 10. Nenhum nome de variável da referência que não exista na relação de endpoints deste cliente
+# 11. Toda função de consulta ou gravação abre as Condições de execução com a linha `Pré-requisitos:`,
+#     listando exatamente os __VARIAVEL__ do seu JSON de endpoint (invariante 18)
 ```
 
 Medir o **bloco sempre-ativo** com `tiktoken` (encoding `o200k_base`): os 4 campos de prompt mais o

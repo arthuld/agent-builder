@@ -4,9 +4,9 @@ description: Use somente quando o usuário pedir explicitamente a criação de u
 argument-hint: "[cliente] [dados]"
 arguments: [cliente]
 disable-model-invocation: true
-allowed-tools: Read, Write, Glob, Grep, AskUserQuestion
+allowed-tools: Read, Write, Glob, Grep, Bash, AskUserQuestion
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Criar Agente Virtual de Pré-Atendimento
@@ -142,6 +142,7 @@ FICHA DE PARÂMETROS — <cliente>
   fluxo.meta_interacoes ........... 5 a 7 mensagens do agente
   default.teto_lista .............. 5
   default.limite_secao1 ........... 950 caracteres
+  default.teto_escopo ............. 6 / 10 funções · 10 mil tokens
   default.observacoes_teto ........ 300 caracteres
 ```
 
@@ -211,6 +212,24 @@ Os dois desenhos existem. Deduzir errado quebra em silêncio: o atendimento simp
 | Tamanho da variável de observações | até 300 caracteres |
 | Delimitador de variável | `__NOME_DA_VARIAVEL__` |
 | Formato de data | `DD/MM/AAAA` |
+
+## Teto de escopo — parar antes de escrever um agente grande demais
+
+Com a ficha preenchida, conte as funções do inventário, transbordo incluído:
+
+| Funções | Ação |
+| --- | --- |
+| até 6 | Segue |
+| 7 a 10 | Segue, e o relatório final abre com esse aviso e o que poderia sair |
+| mais de 10 | **Pare antes de escrever** e apresente as opções: fundir funções (R26), cortar escopo, transformar uma trilha em repasse simples, ou seguir assim por decisão do usuário |
+
+Depois de escrever, vale o mesmo para o sempre-ativo medido: acima de **10 mil tokens**, o relatório final
+abre com o aviso.
+
+*Motivo:* a orientação oficial do nano é tarefa estreita, e cada função e cada regra são pagas em todo turno.
+Medido num agente real: ele chegou a 18 mil tokens e 12 funções, crescendo 91% em seis semanas sem ganhar
+função nenhuma, só regra. Os limites são ponto de partida tirado dos agentes existentes, não número da
+documentação: ajuste quando houver medição de erro por tamanho.
 
 ---
 
@@ -840,6 +859,13 @@ na R26. Partir um arquivo grande em duas funções **piora** o custo.
 # Passo 4 — Verificação mecânica
 
 Rodar **todas** antes de entregar.
+
+**Atalho:** `python verificar.py <pasta do cliente>` roda de uma vez as checagens mecânicas que um
+script consegue fazer e mede o sempre-ativo. O arquivo `verificar.py` fica na mesma pasta deste
+`SKILL.md`. Cada `FALHA` que ele imprime é correção pendente; `INFO` é ponto para conferir à mão. Sem
+terminal, ou sem `tiktoken` instalado, faça as checagens à mão e escreva *não medido* no relatório —
+nunca uma estimativa. O script não substitui os itens que pedem leitura: fluxo, fila de cada demanda,
+consumidor de cada dado.
 
 ```
 1.  Toda variável declarada tem algo no prompt que a preencha

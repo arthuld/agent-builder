@@ -1,5 +1,9 @@
 # Changelog — agv-auditoria
 
+- **3.3.0** — **Verificador único.** O Passo 3 ganha o `verificar.py`, o mesmo script da criação e da
+  correção. Antes, as três skills tinham três listas de checagem diferentes, e um agente podia ser criado sob
+  uma regra e auditado sem ela. O script detecta a categoria, separa `FALHA` de `INFO` e mede o sempre-ativo.
+  Os comandos em shell continuam como alternativa.
 - **3.2.0** — **Retorno vazio deixou de ser julgado ao contrário da criação, e a auditoria passou a conhecer
   três regras que a criação ganhou.** A tabela de categorias dizia que, em Base de conhecimento, vazio "pode
   indicar ausência na base", e o critério de negativa ancorada era só de agente Integrado; as skills de

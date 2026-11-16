@@ -6,7 +6,7 @@ arguments: [cliente]
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
 ---
 
 # Auditar Agente Virtual
@@ -216,7 +216,16 @@ arquivos — o prompt diz uma coisa e o manual diz outra. Só se enxerga lendo o
 
 ## Passo 3 — Verificações mecânicas
 
-Rode, não estime. Cada uma já pegou defeito real:
+Rode, não estime. Cada uma já pegou defeito real.
+
+**Atalho:** `python verificar.py <pasta do cliente>` roda de uma vez as checagens mecânicas que um
+script consegue fazer e mede o sempre-ativo. O arquivo `verificar.py` fica na mesma pasta deste
+`SKILL.md`. Cada `FALHA` que ele imprime é correção pendente; `INFO` é ponto para conferir à mão. Sem
+terminal, ou sem `tiktoken` instalado, faça as checagens à mão e escreva *não medido* no relatório —
+nunca uma estimativa. O script não substitui os itens que pedem leitura: fluxo, fila de cada demanda,
+consumidor de cada dado.
+
+Os comandos abaixo são o mesmo conjunto, um a um, para quem não tem Python:
 
 ```bash
 # seções do prompt (esperado 4) — as duas categorias
