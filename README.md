@@ -1,7 +1,7 @@
 # agent-builder
 
 <p>
-  <img alt="plugin" src="https://img.shields.io/badge/plugin-v2.1.1-1f6feb">
+  <img alt="plugin" src="https://img.shields.io/badge/plugin-v2.5.0-1f6feb">
   <img alt="skills" src="https://img.shields.io/badge/skills-8%20ativas-2da44e">
   <img alt="custo" src="https://img.shields.io/badge/sempre--ativo-~512%20tok-8250df">
   <img alt="padrão" src="https://img.shields.io/badge/padr%C3%A3o-Agent%20Skills-555555">
@@ -76,9 +76,6 @@ skills fora de circulação colocada ali seria carregada como skill ativa. Como 
 **precisa ser refeita a cada atualização**, porque não há update automático. Num projeto que já tenha
 `.agents/skills/`, o opencode lê dali direto, sem instalação nenhuma.
 
-> **Repositório privado.** A instalação exige que o git da máquina tenha acesso. Colaborador adicionado no
-> GitHub consegue; terceiro sem acesso, não.
-
 ---
 
 ## As oito skills
@@ -115,11 +112,11 @@ Só as descrições ficam sempre-ativas; o corpo da skill é lido no momento em 
 | | Sempre-ativo | Ao disparar |
 |---|---|---|
 | Conjunto das 8 | **~512 tok** por sessão | n/a |
-| `agv-novo-dinamico` | ~60 | ~13,6k |
-| `agv-novo-estatico` | ~70 | ~13,4k |
-| `agv-auditoria` | ~60 | ~6,8k |
-| `agv-novo-clinux` | ~70 | ~5,2k + ~6k dos invariantes |
-| `agv-fix` | ~70 | ~2,6k |
+| `agv-novo-dinamico` | ~60 | ~14k |
+| `agv-novo-estatico` | ~70 | ~13,8k |
+| `agv-auditoria` | ~60 | ~7k |
+| `agv-novo-clinux` | ~70 | ~5,4k + ~6,3k dos invariantes |
+| `agv-fix` | ~70 | ~2,8k |
 | `agv-relatorio-homolog` | ~70 | ~2,6k |
 | `agv-relatorio-prod` | ~70 | ~2,2k |
 | `agv-indice` | ~50 | ~2,1k |
@@ -128,7 +125,7 @@ De onde vêm os números:
 
 ▸ **Sempre-ativo:** medido com `claude plugin details agent-builder` na v2.1.0. É a estimativa do próprio
 Claude Code, não o valor faturado.
-▸ **Ao disparar:** medido na v2.4.0 com `tiktoken` sobre o `SKILL.md` de cada skill. Serve como ordem de
+▸ **Ao disparar:** medido na v2.5.0 com `tiktoken` sobre o `SKILL.md` de cada skill. Serve como ordem de
 grandeza, porque o Claude conta tokens de outro jeito.
 
 O histórico de cada skill fica em `skills/<nome>/CHANGELOG.md`. Esse arquivo não é lido quando a skill
@@ -254,64 +251,52 @@ buraco.
 
 | Skill | Versão | Como foi testada |
 |---|---|---|
-| `agv-auditoria` | 3.2.0 | Achou os defeitos novos em 3 de 3 execuções; a versão anterior, em 0 de 2. **Atenção:** em 2 das 3, o juiz contou como falso positivo um comentário sobre a fila em branco, mesmo com a fila listada em "Decisões deliberadas". A versão anterior passou nesse ponto em 2 de 2 |
-| `agv-novo-estatico` | 3.1.0 | Passou em todos os critérios novos em 3 execuções, sem perder nenhum antigo. A versão anterior falhou em 4 dos 6 critérios novos |
-| `agv-novo-dinamico` | 2.1.0 | Passou nos critérios novos em 2 execuções, sem comparação com a versão anterior. Uma falhou no critério de telefone, que provavelmente era largo demais e foi corrigido sem nova rodada |
-| `agv-novo-clinux` | 1.5.0 | Mudança só de texto e versão nesta rodada; o último teste de comportamento é da 1.4.0 (3 de 3) |
-| `agv-relatorio-homolog` | 2.1.0 | 1 de 1 |
-| `agv-relatorio-prod` | 2.0.0 | 1 de 1 |
+| `agv-auditoria` | 3.3.0 | Achou todos os defeitos plantados e não marcou nenhuma decisão certa como defeito, em 3 de 3 execuções. A versão anterior não achou os defeitos das regras novas em nenhuma de 2 |
+| `agv-novo-estatico` | 3.2.0 | Nota máxima em 4 de 5 execuções. A quinta parou em 2 turnos sem escrever nada, e o motivo não ficou registrado. A versão anterior falhou em 5 dos critérios novos |
+| `agv-novo-dinamico` | 2.2.0 | Nota máxima em 3 de 3. A versão anterior falhou em 3 dos critérios novos, em 2 de 2 execuções. Parou antes de escrever em 3 de 3 quando o agente pedia funções demais; a versão anterior escreveu tudo |
+| `agv-novo-clinux` | 1.6.0 | Para corretamente sem cliente de referência (1 de 1). As regras novas desta versão ainda não têm teste, porque não existe caso Clinux completo |
+| `agv-fix` | 1.1.0 | Aplicou só os itens aprovados e deixou o resto intacto em 3 de 3. **Sem a skill, o mesmo pedido também acertou 2 de 2**: neste caso, ela não mostrou ganho |
+| `agv-relatorio-homolog` | 2.1.0 | 4 de 5. Uma execução declarou o agente pronto apesar dos defeitos |
+| `agv-relatorio-prod` | 2.0.0 | 3 de 3 |
 | `agv-indice` | 1.0.0 | 4 de 4 na tabela de decisão |
-| `agv-fix` | 1.0.1 | Ainda sem teste. É a única do conjunto nessa situação |
 
-Os testes da v2.4.0 rodaram em 11/11/2026, com a suíte de `evals/`, juiz Sonnet e um braço de controle com a
-versão anterior das skills. São poucas execuções por caso: mostram que a mudança faz o que promete, não medem
-variação.
+Os testes rodaram entre 13 e 16/11/2026 com a suíte de `evals/`, juiz Sonnet e, onde indicado, a versão
+anterior das skills como comparação. Custo e variação de cada caso estão no `evals/README.md`.
 
-A regra de destino de pasta, comum às três skills de criação, tem GREEN próprio: **5/5**, cobrindo as duas
-ramificações. Em diretório vazio (dinâmico ×2, estático, clinux) as quatro execuções marcaram o destino
-como bloqueante e escreveram **zero arquivos**. Uma delas recusou explicitamente a convenção de pastas
-que estava no contexto ambiente, por a skill se declarar autocontida. Com um cliente já montado ao lado, a
-execução criou a pasta na mesma altura sem perguntar, e não abriu a configuração do vizinho.
+Dois verificadores não dependem de modelo e rodam de graça:
+
+▸ `python skills/agv-auditoria/verificar.py <pasta do cliente>` confere um agente pronto: seções, blocos
+obrigatórios, card, manuais, dados e o custo por turno. O mesmo arquivo está nas cinco skills que o usam.
+▸ `python evals/sincronia.py` confere que as regras repetidas entre as skills continuam dizendo a mesma
+coisa. Nas skills de antes desta versão, ele aponta 31 divergências.
+
+A regra de destino de pasta, comum às três skills de criação, tem teste próprio: **5 de 5**. Em diretório
+vazio, as quatro execuções pararam e não escreveram nada. Com um cliente já montado ao lado, a execução criou
+a pasta na mesma altura sem perguntar, e não abriu a configuração do vizinho.
 
 ### O que ainda falta
 
-Conferido em 13/11/2026. Os itens estão na ordem em que faz sentido resolvê-los.
+Conferido em 16/11/2026.
 
-**Abertos pela rodada de testes de 11/11**
-
-| Item | Situação |
-|---|---|
-| **Falso positivo da auditoria** | Na v3.2.0, o juiz marcou falso positivo sobre a fila em branco em 2 de 3 execuções. A v3.1.0 passava nesse ponto em 2 de 2. Falta ler as respostas e decidir se o problema é da skill ou do critério |
-| **Dinâmica sem comparação** | A dinâmica 2.1.0 rodou sem braço de controle. O critério de telefone foi corrigido e ainda não rodou de novo |
-| **Dois critérios fracos** | "Observações citada uma vez" e "sem string livre" passam também na versão anterior das skills, então não provam nada sozinhos |
-
-**Suíte de testes**
+**Testes**
 
 | Item | Situação |
 |---|---|
-| **Limiar e custo da suíte** | A suíte existe em `evals/` e o critério de fluxo da dinâmica passou nas duas execuções de 11/11. Ainda falta a rodada completa para preencher "Custo e variação" e fixar o `--threshold` |
-| **Clinux só com o caso negativo** | O caso completo precisa de um cliente Clinux inventado como referência, e o único que existe é real |
-| **Teste da `/agv-fix`** | É a única skill do conjunto sem nenhum teste com controle |
-| **Variação dos relatórios** | `agv-relatorio-homolog` e `agv-relatorio-prod` têm uma execução cada. Não há caso deles na suíte |
-
-**Melhorias nas skills, do relatório de auditoria de 11/11**
-
-| Item | Situação |
-|---|---|
-| **Verificador único** | Hoje criação, auditoria e fix têm três listas de checagem diferentes. A ideia é um script só, chamado pelas três, com a medição de tokens junto |
-| **Cópias que divergem** | Modelo alvo, contrato do runtime e estados de ausência existem em várias skills e já divergiram. Falta um teste que falhe quando as cópias ficarem diferentes |
-| **Teto de tamanho do agente** | As skills medem o agente gerado mas não param quando ele passa do ponto. Já saiu um agente de 18 mil tokens e 12 funções |
-| **Travas por função no Clinux** | Proposta: os dados obrigatórios de cada função ficam no cadastro dela e na primeira linha das Condições de Execução. Aguardando confirmação |
+| **Estático que parou sem escrever** | Uma de cinco execuções parou em 2 turnos, sem arquivo e sem mensagem que explique. Não se repetiu em quatro execuções seguintes. Se voltar, rodar com `--keep-temp` para ler o que aconteceu |
+| **"Toda trilha executa" na dinâmica** | O critério que cobria isso reprovava um arquivo sabidamente correto e saiu da suíte. Hoje um caminho que termina só com texto, sem chamar o transbordo, não tem verificação automática |
+| **Critérios que não distinguem versões** | "Observações citada uma vez" e "sentinelas no enum" passam também na versão anterior das skills |
+| **Ganho da `/agv-fix`** | O caso de teste é fácil demais: sem a skill, o resultado foi o mesmo. Falta um caso em que corrigir sem método dê errado |
+| **Clinux completo** | Precisa de um cliente Clinux inventado como referência. O único que existe é real |
 
 **Depende de algo de fora**
 
 | Item | Situação |
 |---|---|
-| **Teste no modelo real** | Toda validação hoje mede se o Claude segue a skill, não como o `gpt-5.4-nano` se comporta com o agente gerado. Precisa de uma chave da API da OpenAI |
+| **Teste no modelo real** | Toda validação mede se o Claude segue a skill, não como o `gpt-5.4-nano` se comporta com o agente gerado. Precisa de uma chave da API da OpenAI |
 | **Troca para o `gpt-6-luna`** | O `gpt-5.4-nano` sai da API em 01/04/2027. A troca depende do teste no modelo real e de o Luna estar disponível na plataforma |
-| **`/agv-novo-animati`** | Ainda não existe. Depende do material da integração animati-netpacs |
-| **Instalação no Antigravity** | Os comandos do `agy` foram conferidos, mas este plugin nunca foi instalado por ele para ver as oito skills aparecerem |
-| **LICENSE** | O manifesto diz `UNLICENSED` e não há arquivo. Só importa se o repositório deixar de ser privado |
+| **`/agv-novo-animati`** | Ainda não existe |
+| **Instalação no Antigravity** | Os comandos do `agy` foram conferidos, mas este plugin nunca foi instalado por ele |
+| **LICENSE** | O repositório é público, mas o manifesto diz `UNLICENSED` e não há arquivo de licença. Sem ele, ninguém tem permissão formal para usar ou copiar as skills |
 
 ---
 
