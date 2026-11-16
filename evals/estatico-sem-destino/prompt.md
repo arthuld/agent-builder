@@ -58,7 +58,7 @@ schema tem enum, pattern ou format.
 Base de `get_informacoes`:
 - Endereço: Rua dos Ipês, 340, Centro.
 - Horário: segunda a sexta 7h às 19h; sábado 7h às 12h.
-- Convênios aceitos: Unimed, Bradesco Saúde, Amil.
+- Convênios aceitos: Saúde Total, VidaPlena, Plano Aurora.
 
 Regras de negócio:
 1. Exame de imagem exige pedido médico. Sem pedido, informar que é obrigatório e seguir para

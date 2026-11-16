@@ -39,7 +39,7 @@ Funções que vão existir:
 - `get_unidades`: unidades, endereços e horários.
 - `set_transbordo`: a função de transbordo.
 
-Base de `get_convenios`: Unimed, Bradesco Saúde, SulAmérica, Amil. Todos cobrem todos os exames do escopo.
+Base de `get_convenios`: Saúde Total, VidaPlena, Bem Viver, Plano Aurora. Todos cobrem todos os exames do escopo.
 
 Base de `get_unidades`:
 - Unidade Centro, Rua das Acácias, 120. Segunda a sexta 7h às 19h; sábado 7h às 12h.

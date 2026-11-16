@@ -27,7 +27,7 @@ claude plugin eval . --tag auditoria --runs 1 --ablation none --scaffold --judge
 Três execuções por caso, todas as suítes, quatro de cada vez:
 
 ```bash
-claude plugin eval . --tag dinamico estatico auditoria clinux --runs 3 --ablation none -j 4 --scaffold --allow-tools Write Edit --judge-model claude-sonnet-5-5 --threshold LIMIAR --trust-plugin --no-publish
+claude plugin eval . --tag dinamico estatico auditoria clinux --runs 3 --ablation none -j 4 --scaffold --allow-tools Write Edit --judge-model claude-sonnet-5-5 --threshold 0.9 --trust-plugin --no-publish
 ```
 
 ### Quando mudar um critério — calibração
@@ -42,13 +42,14 @@ consegue falhar. Resultado esperado:
 
 | Caso | Critério | Esperado |
 | --- | --- | --- |
-| `calib-din-certo` | 13 e 15 | aprova os dois |
-| `calib-din-sem-execucao` | 13 | **reprova** — a Trilha B encerra só com texto |
+| `calib-din-certo` | 13b e 15 | aprova os dois |
+| `calib-din-sem-execucao` | — | Sem critério desde 11/2026: o 13a, que cobria "toda trilha executa", foi retirado (ver abaixo) |
 | `calib-din-confirma-depois` | 15 | **reprova** — executa antes de confirmar |
-| `calib-din-fila-errada` | 13 | **reprova** — convênio fora da base vai para a fila errada |
+| `calib-din-fila-errada` | 13b | **reprova** — convênio fora da base vai para a fila errada |
 | `calib-est-certo` | 13 | aprova |
 | `calib-est-fila-errada` | 13 | **reprova** — a opção 2 vai para a fila errada |
 | `calib-aud-fraca` | 02 a 07 | **reprova os seis** — auditoria genérica, com três falsos positivos e sem os critérios de 11/2026 |
+| `calib-aud-boa` | 02 a 07 | **aprova todos**: auditoria real da v3.2.0. Prova que os critérios não reprovam uma resposta correta |
 
 Se um caso que devia reprovar aprovar, o critério ficou leniente e a suíte não está provando nada.
 
@@ -75,8 +76,22 @@ Resultados vão para `evals/results/`, que é gitignored.
 | `estatico-sem-destino` | `estatico` | Sem destino, para e não escreve nada |
 | `clinux-sem-referencia` | `clinux` | Sem cliente Clinux de referência no disco, a skill para em vez de inventar o agente do zero |
 | `auditoria-fixture` | `auditoria` | A auditoria encontra os defeitos plantados e não reporta decisão deliberada como defeito. O critério 07 cobre as regras de 11/2026: telefone do contato coletado, variável de observações ausente e cabeçalho `FUNÇÃO:` na §2 |
+| `dinamico-teto` | `dinamico` | Com 12 funções no inventário, acima do teto de 10, a skill para antes de escrever e oferece as saídas |
+| `fix-fixture` | `fix` | Com um plano de três itens e só dois aprovados, a correção aplica os dois, deixa o terceiro como estava e não mexe no que está fora do plano |
+| `fix-controle` | `comparacao` | O mesmo pedido, sem a skill. Mede o que a skill acrescenta |
+| `relatorio-homolog`, `relatorio-prod` | `relatorio` | Os dois relatórios saem no caminho certo, com veredito, e não declaram pronto um cliente com defeito |
 | `dinamico-controle` | `comparacao` | O mesmo briefing e os mesmos critérios, **sem** a skill — só a estrutura de arquivos informada. Mede o que a skill acrescenta. Não roda no dia a dia |
 | `calib-*` | `calibracao` | Prova que os critérios reprovam o que está errado |
+
+## Sincronia entre as skills
+
+```bash
+python evals/sincronia.py
+```
+
+Não roda modelo nenhum e não custa nada. Confere que as regras repetidas em mais de uma skill continuam
+dizendo a mesma coisa, que nenhuma regra revogada voltou, e que as cinco cópias do `verificar.py` são
+idênticas. Rodar antes de todo commit que mexa em skill.
 
 ## Como um caso é montado
 
@@ -112,12 +127,42 @@ Regras que custaram uma rodada para aprender:
   nasceram cravando uma implementação ("a Trilha C vai para `Atendimento_Geral`") e reprovaram saídas
   corretas, que chegavam ao mesmo destino por outro caminho. Escreva o que conta como acerto, o que reprova,
   e o que **não** é defeito — as exceções que a própria skill prevê.
+- **Critério `llm` é sim ou não.** O juiz vota passa ou falha, sem nota parcial. Um critério que junta
+  três verificações com "tira 0,33 cada" reprova a resposta inteira na primeira leitura rigorosa de qualquer
+  uma delas. Foi o que aconteceu com o antigo critério 06 da auditoria, hoje dividido em 06a, 06b e 06c: a
+  mesma resposta reprovava junto e passava separada.
 - **Mudou um critério, roda a calibração.** Critério reescrito depois de ver a saída só se justifica se
   continuar reprovando o que está errado.
 
+## Critério retirado: 13a
+
+O critério "toda trilha da dinâmica termina executando o transbordo" (13a) reprovou o arquivo **sabidamente
+correto** da calibração em 13/11/2026, como já tinha acontecido em outubro, sem causa encontrada. Saiu da
+régua. A garantia que ele dava fica parcial: a frase literal de execução é conferida pelo `verificar.py`, mas
+um caminho que encerra só com texto não tem mais critério automático.
+
 ## Custo e variação
 
-*A preencher com a rodada completa.*
+Medido na rodada de 13 a 16/11/2026, v2.5.0, juiz Sonnet. Custo em dólar é o que a CLI reporta; na
+assinatura, sai da cota de uso.
+
+| Caso | Custo por execução | Execuções | Resultado |
+| --- | --- | --- | --- |
+| `auditoria-fixture` | ~US$ 0,95 | 3 | 3 de 3 com nota 1 |
+| `estatico-completo` | ~US$ 1,20 | 5 | 4 de 5 com nota 1; uma parou em 2 turnos sem escrever nada, sem causa registrada |
+| `dinamico-completo` | ~US$ 1,90 | 3 | 3 de 3 depois de retirar o 13a |
+| `dinamico-teto` | ~US$ 0,40 | 3 | 3 de 3 |
+| `*-sem-destino`, `clinux-sem-referencia` | ~US$ 0,33 | 1 cada | todos com nota 1 |
+| `fix-fixture` | ~US$ 0,30 | 3 | 3 de 3 |
+| `relatorio-homolog`, `relatorio-prod` | ~US$ 0,45 | 5 e 3 | 4 de 5 e 3 de 3 |
+| calibração inteira | ~US$ 1,70 | 1 | cada caso no resultado esperado |
+
+A rodada completa com 3 execuções por caso custa por volta de **US$ 35** e estoura o limite de 5 horas da
+assinatura no meio. Rode por partes, com `-j 2`.
+
+**Limiar: `--threshold 0.9`.** Abaixo disso, algum critério reprovou de verdade numa execução. A execução do
+estático que parou sem escrever nada fica abaixo do limiar, e deve ficar: é exatamente o tipo de falha que a
+suíte existe para mostrar.
 
 ## Limites
 

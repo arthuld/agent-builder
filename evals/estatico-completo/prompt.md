@@ -55,13 +55,13 @@ Funções:
 - `set_transbordo`: a função de transbordo, executada ao final de toda trilha.
 - `get_informacoes`: base para responder perguntas feitas fora do menu.
 
-Schema de `set_transbordo`: o único parâmetro obrigatório é `atendimento_resolvido`. Nenhum campo do
-schema tem enum, pattern ou format.
+Schema de `set_transbordo`: o único parâmetro obrigatório é `atendimento_resolvido`. O campo
+`pedido_medico` tem enum com os valores `Sim` e `Não`; os demais campos são texto, sem enum, pattern ou format.
 
 Base de `get_informacoes`:
 - Endereço: Rua dos Ipês, 340, Centro.
 - Horário: segunda a sexta 7h às 19h; sábado 7h às 12h.
-- Convênios aceitos: Unimed, Bradesco Saúde, Amil.
+- Convênios aceitos: Saúde Total, VidaPlena, Plano Aurora.
 
 Regras de negócio:
 1. Exame de imagem exige pedido médico. Sem pedido, informar que é obrigatório e seguir para
